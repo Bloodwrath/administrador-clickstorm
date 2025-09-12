@@ -1,8 +1,8 @@
 {
-  "homepage": "https://bloodwrath.github.io/administrador-clickstorm",
   "name": "business-management-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "homepage": "https://bloodwrath.github.io/administrador-clickstorm",
   "dependencies": {
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
@@ -17,6 +17,7 @@
     "@types/node": "^16.18.30",
     "@types/react": "^18.2.6",
     "@types/react-dom": "^18.2.4",
+    "@types/react-router-dom": "^5.3.3",
     "date-fns": "^2.29.3",
     "firebase": "^9.22.0",
     "react": "^18.2.0",
@@ -55,7 +56,6 @@
     ]
   },
   "devDependencies": {
-    "@types/react-router-dom": "^5.3.3",
     "gh-pages": "^5.0.0"
   }
 }

@@ -1,0 +1,9 @@
+declare module '@components/*';
+declare module '@modules/*';
+declare module '@services/*';
+declare module '@utils/*';
+declare module '@assets/*';
+declare module '@styles/*';
+declare module '@context/*';
+declare module '@hooks/*';
+declare module '@types/*';

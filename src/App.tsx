@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CssBaseline, useTheme, CircularProgress } from '@mui/material';
-import { useAuth } from '@context/AuthContext';
+import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import { NotFound, TestConnection } from './components';
 import Dashboard from './modules/Dashboard';

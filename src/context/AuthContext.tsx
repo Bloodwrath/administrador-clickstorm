@@ -7,7 +7,7 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { auth } from '@services/firebase';
+import { auth } from '../services/firebase';
 
 type AuthContextType = {
   currentUser: User | null;
