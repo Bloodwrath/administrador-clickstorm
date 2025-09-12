@@ -22,6 +22,7 @@ import {
   AccountBalance as AccountingIcon,
   Inventory as InventoryIcon,
   ShoppingCart as OrdersIcon,
+  PeopleAlt as SuppliersIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
@@ -93,6 +94,7 @@ const Layout: React.FC = () => {
     { text: 'Panel', icon: <DashboardIcon />, path: '/' },
     { text: 'Contabilidad', icon: <AccountingIcon />, path: '/accounting' },
     { text: 'Inventario', icon: <InventoryIcon />, path: '/inventory' },
+    { text: 'Proveedores', icon: <SuppliersIcon />, path: '/inventory/suppliers' },
     { text: 'Pedidos', icon: <OrdersIcon />, path: '/orders' },
   ];
 
