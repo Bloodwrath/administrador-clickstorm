@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/administrador-clickstorm/static/css/main.2059629f.css",
-    "main.js": "/administrador-clickstorm/static/js/main.ff6b04a3.js",
+    "main.js": "/administrador-clickstorm/static/js/main.c0baa6fc.js",
     "index.html": "/administrador-clickstorm/index.html",
     "main.2059629f.css.map": "/administrador-clickstorm/static/css/main.2059629f.css.map",
-    "main.ff6b04a3.js.map": "/administrador-clickstorm/static/js/main.ff6b04a3.js.map"
+    "main.c0baa6fc.js.map": "/administrador-clickstorm/static/js/main.c0baa6fc.js.map"
   },
   "entrypoints": [
     "static/css/main.2059629f.css",
-    "static/js/main.ff6b04a3.js"
+    "static/js/main.c0baa6fc.js"
   ]
 }
