@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Box, Typography, Button, Container, Dialog, DialogContent, DialogTitle, DialogActions, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, SaveAlt as ExportIcon, Image as ImageIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useEffect, useMemo, useState } from 'react';
 import { Product, listenProducts, deleteProduct } from '../../services/products';
@@ -19,6 +19,8 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   const { showMessage } = useSnackbar();
   const [rows, setRows] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
+  const [filterSupplier, setFilterSupplier] = useState<string>('');
+  const [filterCategory, setFilterCategory] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
@@ -33,6 +35,12 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
     if (lowStockOnly) {
       items = items.filter((p) => typeof p.minStock === 'number' && p.stock <= (p.minStock as number));
     }
+    if (filterSupplier) {
+      items = items.filter((p) => p.supplierId === filterSupplier);
+    }
+    if (filterCategory) {
+      items = items.filter((p) => (p.categoria || '') === filterCategory);
+    }
     if (!t) return items;
     return items.filter(
       (p) =>
@@ -41,39 +49,77 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
         (p.categoria || '').toLowerCase().includes(t) ||
         (p.supplierName || '').toLowerCase().includes(t)
     );
-  }, [rows, search, lowStockOnly]);
+  }, [rows, search, lowStockOnly, filterSupplier, filterCategory]);
 
   const columns: GridColDef[] = [
     {
       field: 'imagen',
       headerName: 'Imagen',
-      width: 120,
+      width: 200,
       sortable: false,
       renderCell: (params: GridRenderCellParams<Product>) => (
-        <Button
-          size="small"
-          variant="text"
-          disabled={!params.row.hasImage}
-          onClick={async () => {
-            try {
-              const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
-              if (!bytes) { showMessage('Sin imagen', 'info'); return; }
-              const blob = new Blob([bytes], { type: 'image/*' });
-              const url = URL.createObjectURL(blob);
-              setPreviewSrc(url);
-              setPreviewOpen(true);
-            } catch (e) {
-              console.error(e);
-              showMessage('No se pudo cargar la imagen', 'error');
-            }
-          }}
-        >
-          Ver
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            variant="text"
+            disabled={!params.row.hasImage}
+            onClick={async () => {
+              try {
+                const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
+                if (!bytes) { showMessage('Sin imagen', 'info'); return; }
+                const blob = new Blob([bytes], { type: 'image/*' });
+                const url = URL.createObjectURL(blob);
+                setPreviewSrc(url);
+                setPreviewOpen(true);
+              } catch (e) {
+                console.error(e);
+                showMessage('No se pudo cargar la imagen', 'error');
+              }
+            }}
+          >
+            Ver
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            disabled={!params.row.hasImage}
+            onClick={async () => {
+              try {
+                const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
+                if (!bytes) { showMessage('Sin imagen', 'info'); return; }
+                const blob = new Blob([bytes], { type: 'image/*' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${params.row.nombre || 'producto'}.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                console.error(e);
+                showMessage('No se pudo descargar la imagen', 'error');
+              }
+            }}
+          >
+            Descargar
+          </Button>
+        </Box>
       ),
     },
     { field: 'supplierName', headerName: 'Proveedor', width: 180 },
-    { field: 'nombre', headerName: 'Nombre', flex: 1, minWidth: 160 },
+    { 
+      field: 'nombre', 
+      headerName: 'Nombre', 
+      flex: 1, 
+      minWidth: 160,
+      renderCell: (params: GridRenderCellParams<Product>) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {params.row.hasImage && <ImageIcon fontSize="small" color="action" titleAccess="Con imagen" />}
+          <span>{params.row.nombre}</span>
+        </Box>
+      )
+    },
     { field: 'sku', headerName: 'SKU', width: 130 },
     { field: 'categoria', headerName: 'Categoría', width: 160 },
     { field: 'precio', headerName: 'Precio', width: 120, valueFormatter: (v) => `$${v.value ?? 0}` },
@@ -121,14 +167,117 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">Productos</Typography>
-        <TextField
-          size="small"
-          placeholder="Buscar por nombre, SKU o categoría"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <TextField
+            size="small"
+            placeholder="Buscar por nombre, SKU o categoría"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {/* Filtro por Proveedor */}
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel id="filter-supplier-label">Proveedor</InputLabel>
+            <Select
+              labelId="filter-supplier-label"
+              label="Proveedor"
+              value={filterSupplier}
+              onChange={(e) => setFilterSupplier(e.target.value as string)}
+            >
+              <MenuItem value=""><em>Todos</em></MenuItem>
+              {[...new Map(rows.filter(r=>r.supplierId).map(r => [r.supplierId, { id: r.supplierId, name: r.supplierName }])).values()].map((s: any) => (
+                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {/* Filtro por Categoría */}
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="filter-category-label">Categoría</InputLabel>
+            <Select
+              labelId="filter-category-label"
+              label="Categoría"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value as string)}
+            >
+              <MenuItem value=""><em>Todas</em></MenuItem>
+              {Array.from(new Set(rows.map(r => r.categoria).filter(Boolean) as string[])).map((c) => (
+                <MenuItem key={c} value={c}>{c}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<ExportIcon />}
+            onClick={() => {
+              // Exportar CSV de los elementos filtrados
+              const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
+              const lines = [headers.join(',')];
+              filtered.forEach((p) => {
+                const row = [
+                  p.nombre ?? '',
+                  p.sku ?? '',
+                  p.categoria ?? '',
+                  p.supplierName ?? '',
+                  String(p.precio ?? ''),
+                  String(p.costo ?? ''),
+                  String(p.stock ?? ''),
+                  String(p.minStock ?? ''),
+                  p.activo ? 'Sí' : 'No',
+                ];
+                // Escapar comas con comillas
+                lines.push(row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+              });
+              const csv = lines.join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'inventario.csv';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Exportar CSV
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<ExportIcon />}
+            onClick={() => {
+              // Exportar como Excel (XLS) usando tabla HTML (compatible con Excel)
+              const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
+              const rowsHtml = filtered.map((p) => (
+                `<tr>`+
+                `<td>${(p.nombre??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`+
+                `<td>${(p.sku??'')}</td>`+
+                `<td>${(p.categoria??'')}</td>`+
+                `<td>${(p.supplierName??'')}</td>`+
+                `<td>${p.precio??''}</td>`+
+                `<td>${p.costo??''}</td>`+
+                `<td>${p.stock??''}</td>`+
+                `<td>${p.minStock??''}</td>`+
+                `<td>${p.activo?'Sí':'No'}</td>`+
+                `</tr>`
+              )).join('');
+              const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`;
+              const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'inventario.xls';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Exportar Excel
+          </Button>
+        </Box>
       </Box>
       <div style={{ width: '100%' }}>
         <DataGrid autoHeight rows={filtered} columns={columns} getRowId={(r) => r.id!} pageSizeOptions={[5, 10, 25]} />
@@ -332,7 +481,29 @@ const SupplierList: React.FC = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">Proveedores</Typography>
-        <Button variant="contained" onClick={() => navigate('/inventory/suppliers/add')}>Agregar Proveedor</Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="outlined" onClick={() => {
+            const headers = ['Nombre','Contacto','Teléfono','Email','Dirección','Activo'];
+            const lines = [headers.join(',')];
+            rows.forEach((s) => {
+              const row = [
+                s.nombre ?? '', s.contacto ?? '', s.telefono ?? '', s.email ?? '', s.direccion ?? '', s.activo ? 'Sí' : 'No'
+              ];
+              lines.push(row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+            });
+            const csv = lines.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'proveedores.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}>Exportar CSV</Button>
+          <Button variant="contained" onClick={() => navigate('/inventory/suppliers/add')}>Agregar Proveedor</Button>
+        </Box>
       </Box>
       {rows.map((s) => (
         <Box key={s.id} sx={{ display: 'flex', gap: 2, alignItems: 'center', py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
