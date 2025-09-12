@@ -5,6 +5,7 @@ import { Add as AddIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useEffect, useMemo, useState } from 'react';
 import { Product, listenProducts, deleteProduct } from '../../services/products';
+import { saveLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
 import { useForm } from 'react-hook-form';
 import TextField from '@mui/material/TextField';
@@ -68,7 +69,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
             variant="outlined"
             onClick={async () => {
               if (!params.row.id) return;
-              if (!confirm('¿Eliminar este producto?')) return;
+              if (!window.confirm('¿Eliminar este producto?')) return;
               try {
                 await deleteProduct(params.row.id);
                 showMessage('Producto eliminado', 'success');
@@ -125,15 +126,29 @@ const ProductForm: React.FC = () => {
     });
   }, [id, isEdit, setValue]);
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
   const onSubmit = async (data: Product) => {
     try {
       if (isEdit) {
         const { updateProduct } = await import('../../services/products');
         await updateProduct(id!, data);
+        // Si se adjuntó nueva imagen, guardarla y marcar flag
+        if (imageFile) {
+          const buf = await imageFile.arrayBuffer();
+          await saveLargeText('productos_files', id!, new Uint8Array(buf), { encode: 'base64' });
+          await updateProduct(id!, { hasImage: true });
+        }
         showMessage('Producto actualizado', 'success');
       } else {
-        const { addProduct } = await import('../../services/products');
-        await addProduct(data);
+        const { addProduct, updateProduct } = await import('../../services/products');
+        // Crear primero para obtener el id
+        const newId = await addProduct({ ...data, hasImage: false });
+        if (imageFile) {
+          const buf = await imageFile.arrayBuffer();
+          await saveLargeText('productos_files', newId, new Uint8Array(buf), { encode: 'base64' });
+          await updateProduct(newId, { hasImage: true });
+        }
         showMessage('Producto creado', 'success');
       }
       navigate('/inventory');
@@ -153,6 +168,14 @@ const ProductForm: React.FC = () => {
       <TextField label="Stock" type="number" {...register('stock', { valueAsNumber: true })} />
       <TextField label="Stock mínimo" type="number" {...register('minStock', { valueAsNumber: true })} />
       <TextField label="Descripción" multiline minRows={3} sx={{ gridColumn: { md: '1 / span 2' } }} {...register('descripcion')} />
+      <Box sx={{ gridColumn: { md: '1 / span 2' } }}>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>Imagen principal (opcional)</Typography>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+        />
+      </Box>
       <FormControlLabel control={<Checkbox defaultChecked {...register('activo')} />} label="Activo" />
       <Box sx={{ gridColumn: { md: '1 / span 2' }, display: 'flex', gap: 2 }}>
         <Button type="submit" variant="contained" disabled={isSubmitting}>

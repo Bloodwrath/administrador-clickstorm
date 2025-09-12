@@ -11,6 +11,7 @@ export type Product = {
   stock: number;
   minStock?: number;
   descripcion?: string;
+  hasImage?: boolean;
   activo: boolean;
   createdAt?: any;
   updatedAt?: any;
