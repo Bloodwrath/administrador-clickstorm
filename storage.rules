@@ -1,0 +1,41 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Función para verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Función para verificar si el usuario es administrador
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.admin == true;
+    }
+
+    // Reglas para las imágenes de productos
+    match /productos/{productoId}/{imagenId} {
+      // Cualquier usuario autenticado puede ver las imágenes
+      allow read: if isAuthenticated();
+      
+      // Solo administradores pueden subir o eliminar imágenes
+      allow create, delete: if isAdmin();
+    }
+
+    // Reglas para las imágenes de perfil de usuario
+    match /usuarios/{userId}/{imagenId} {
+      // Cualquier usuario autenticado puede ver las imágenes de perfil
+      allow read: if isAuthenticated();
+      
+      // Los usuarios solo pueden subir o eliminar su propia imagen de perfil
+      // Los administradores pueden hacerlo por cualquier usuario
+      allow create, delete: if isAdmin() || 
+                           (isAuthenticated() && request.auth.uid == userId);
+    }
+
+    // Reglas para otros archivos
+    match /{allPaths=**} {
+      // Por defecto, denegar todo acceso
+      allow read, write: if false;
+    }
+  }
+}
