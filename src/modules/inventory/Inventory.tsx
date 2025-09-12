@@ -36,10 +36,10 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       items = items.filter((p) => typeof p.minStock === 'number' && p.stock <= (p.minStock as number));
     }
     if (filterSupplier) {
-      items = items.filter((p) => p.supplierId === filterSupplier);
+      items = items.filter((p) => (p as any).supplierId === filterSupplier);
     }
     if (filterCategory) {
-      items = items.filter((p) => (p.categoria || '') === filterCategory);
+      items = items.filter((p) => ((p as any).categoria || '') === filterCategory);
     }
     if (!t) return items;
     return items.filter(
