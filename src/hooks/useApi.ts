@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { useSnackbar } from '@context/SnackbarContext';
+import { useSnackbar } from '../context/SnackbarContext';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 

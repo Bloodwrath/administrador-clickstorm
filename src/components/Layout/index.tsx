@@ -24,8 +24,8 @@ import {
   ShoppingCart as OrdersIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { useAuth } from '@context/AuthContext';
-import { useSnackbar } from '@context/SnackbarContext';
+import { useAuth } from '../../context/AuthContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 
 const drawerWidth = 240;
 

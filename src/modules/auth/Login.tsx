@@ -13,8 +13,8 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { useAuth } from '@context/AuthContext';
-import { useSnackbar } from '@context/SnackbarContext';
+import { useAuth } from '../../context/AuthContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
