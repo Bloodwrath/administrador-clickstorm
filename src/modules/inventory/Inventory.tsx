@@ -186,7 +186,18 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
               onChange={(e) => setFilterSupplier(e.target.value as string)}
             >
               <MenuItem value=""><em>Todos</em></MenuItem>
-              {[...new Map(rows.filter(r=>r.supplierId).map(r => [r.supplierId, { id: r.supplierId, name: r.supplierName }])).values()].map((s: any) => (
+              {(
+                Array.from(
+                  new Map(
+                    rows
+                      .filter((r) => (r as any).supplierId)
+                      .map((r) => [
+                        (r as any).supplierId,
+                        { id: (r as any).supplierId, name: (r as any).supplierName },
+                      ])
+                  ).values()
+                ) as any[]
+              ).map((s) => (
                 <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
               ))}
             </Select>
