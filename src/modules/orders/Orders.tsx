@@ -208,7 +208,7 @@ const NewOrder = () => {
       
       // Generate and download PDF
       const { customerName, customerEmail, customerPhone, items, subtotal, tax, total, status } = order;
-      const pdfDoc = generatePdf({
+      generatePdf({
         id: docRef.id,
         customerName,
         customerEmail,
