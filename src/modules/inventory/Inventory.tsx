@@ -1,11 +1,12 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Box, Typography, Button, Container } from '@mui/material';
+import { Box, Typography, Button, Container, Dialog, DialogContent, DialogTitle, DialogActions, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useEffect, useMemo, useState } from 'react';
 import { Product, listenProducts, deleteProduct } from '../../services/products';
-import { saveLargeText } from '../../services/textStorage';
+import { Supplier, listSuppliers, listenSuppliers, addSupplier, updateSupplier, deleteSupplier, getSupplierById } from '../../services/suppliers';
+import { saveLargeText, getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
 import { useForm } from 'react-hook-form';
 import TextField from '@mui/material/TextField';
@@ -18,6 +19,8 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   const { showMessage } = useSnackbar();
   const [rows, setRows] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = listenProducts((items) => setRows(items));
@@ -35,11 +38,41 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       (p) =>
         (p.nombre || '').toLowerCase().includes(t) ||
         (p.sku || '').toLowerCase().includes(t) ||
-        (p.categoria || '').toLowerCase().includes(t)
+        (p.categoria || '').toLowerCase().includes(t) ||
+        (p.supplierName || '').toLowerCase().includes(t)
     );
   }, [rows, search, lowStockOnly]);
 
   const columns: GridColDef[] = [
+    {
+      field: 'imagen',
+      headerName: 'Imagen',
+      width: 120,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams<Product>) => (
+        <Button
+          size="small"
+          variant="text"
+          disabled={!params.row.hasImage}
+          onClick={async () => {
+            try {
+              const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
+              if (!bytes) { showMessage('Sin imagen', 'info'); return; }
+              const blob = new Blob([bytes], { type: 'image/*' });
+              const url = URL.createObjectURL(blob);
+              setPreviewSrc(url);
+              setPreviewOpen(true);
+            } catch (e) {
+              console.error(e);
+              showMessage('No se pudo cargar la imagen', 'error');
+            }
+          }}
+        >
+          Ver
+        </Button>
+      ),
+    },
+    { field: 'supplierName', headerName: 'Proveedor', width: 180 },
     { field: 'nombre', headerName: 'Nombre', flex: 1, minWidth: 160 },
     { field: 'sku', headerName: 'SKU', width: 130 },
     { field: 'categoria', headerName: 'Categoría', width: 160 },
@@ -100,6 +133,27 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       <div style={{ width: '100%' }}>
         <DataGrid autoHeight rows={filtered} columns={columns} getRowId={(r) => r.id!} pageSizeOptions={[5, 10, 25]} />
       </div>
+      <Dialog open={previewOpen} onClose={() => { if (previewSrc) URL.revokeObjectURL(previewSrc); setPreviewOpen(false); setPreviewSrc(null); }} maxWidth="lg">
+        <DialogTitle>Vista previa</DialogTitle>
+        <DialogContent>
+          {previewSrc && (
+            <img
+              src={previewSrc}
+              alt="Producto"
+              style={{ maxWidth: '90vw', maxHeight: '80vh', display: 'block' }}
+              onClick={() => window.open(previewSrc!, '_blank')}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          {previewSrc && (
+            <a href={previewSrc} download="imagen-producto" style={{ textDecoration: 'none' }}>
+              <Button>Descargar</Button>
+            </a>
+          )}
+          <Button onClick={() => { if (previewSrc) URL.revokeObjectURL(previewSrc); setPreviewOpen(false); setPreviewSrc(null); }}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
@@ -117,19 +171,51 @@ const ProductForm: React.FC = () => {
   });
 
   useEffect(() => {
+    // cargar lista de proveedores
+    listSuppliers().then(setSuppliers).catch((e) => console.warn('No se pudieron cargar proveedores', e));
     if (!isEdit) return;
     import('../../services/products').then(async ({ getProductById }) => {
       const p = await getProductById(id!);
       if (p) {
         Object.entries(p).forEach(([k, v]) => setValue(k as any, v as any));
+        // Cargar vista previa si ya tiene imagen
+        if (p.hasImage) {
+          try {
+            const bytes = (await getLargeText('productos_files', id!, true)) as Uint8Array | null;
+            if (bytes) {
+              const blob = new Blob([bytes], { type: 'image/*' });
+              setPreviewUrl(URL.createObjectURL(blob));
+            }
+          } catch (e) {
+            console.warn('No se pudo cargar la imagen existente', e);
+          }
+        }
+        // Establecer proveedor si existe
+        if (p.supplierId) {
+          setSupplierId(p.supplierId);
+        }
       }
     });
   }, [id, isEdit, setValue]);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierId, setSupplierId] = useState<string>('');
 
   const onSubmit = async (data: Product) => {
     try {
+      // Resolver supplierName a partir de selección
+      if (supplierId) {
+        const sup = suppliers.find((s) => s.id === supplierId);
+        if (sup) {
+          data.supplierId = sup.id;
+          data.supplierName = sup.nombre;
+        }
+      } else {
+        data.supplierId = undefined;
+        data.supplierName = undefined;
+      }
       if (isEdit) {
         const { updateProduct } = await import('../../services/products');
         await updateProduct(id!, data);
@@ -163,6 +249,20 @@ const ProductForm: React.FC = () => {
       <TextField label="Nombre" required {...register('nombre')} />
       <TextField label="SKU" {...register('sku')} />
       <TextField label="Categoría" {...register('categoria')} />
+      <FormControl>
+        <InputLabel id="supplier-label">Proveedor</InputLabel>
+        <Select
+          labelId="supplier-label"
+          label="Proveedor"
+          value={supplierId}
+          onChange={(e) => setSupplierId(e.target.value as string)}
+        >
+          <MenuItem value=""><em>Sin proveedor</em></MenuItem>
+          {suppliers.map((s) => (
+            <MenuItem key={s.id} value={s.id}>{s.nombre}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
       <TextField label="Precio" type="number" inputProps={{ step: '0.01' }} {...register('precio', { valueAsNumber: true })} />
       <TextField label="Costo" type="number" inputProps={{ step: '0.01' }} {...register('costo', { valueAsNumber: true })} />
       <TextField label="Stock" type="number" {...register('stock', { valueAsNumber: true })} />
@@ -173,8 +273,24 @@ const ProductForm: React.FC = () => {
         <input
           type="file"
           accept="image/*"
-          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+          onChange={(e) => {
+            const f = e.target.files?.[0] || null;
+            setImageFile(f);
+            if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
+            if (f) setPreviewUrl(URL.createObjectURL(f));
+          }}
         />
+        {previewUrl && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>Vista previa (haz clic para ampliar):</Typography>
+            <img
+              src={previewUrl}
+              alt="Vista previa"
+              style={{ maxWidth: '300px', maxHeight: '200px', cursor: 'zoom-in' }}
+              onClick={() => window.open(previewUrl!, '_blank')}
+            />
+          </Box>
+        )}
       </Box>
       <FormControlLabel control={<Checkbox defaultChecked {...register('activo')} />} label="Activo" />
       <Box sx={{ gridColumn: { md: '1 / span 2' }, display: 'flex', gap: 2 }}>
@@ -201,6 +317,88 @@ const LowStock: React.FC = () => (
   </Box>
 );
 
+// Gestión de proveedores
+const SupplierList: React.FC = () => {
+  const navigate = useNavigate();
+  const { showMessage } = useSnackbar();
+  const [rows, setRows] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    const unsub = listenSuppliers(setRows);
+    return () => unsub();
+  }, []);
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5">Proveedores</Typography>
+        <Button variant="contained" onClick={() => navigate('/inventory/suppliers/add')}>Agregar Proveedor</Button>
+      </Box>
+      {rows.map((s) => (
+        <Box key={s.id} sx={{ display: 'flex', gap: 2, alignItems: 'center', py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography fontWeight={600}>{s.nombre}</Typography>
+            <Typography variant="body2" color="text.secondary">{s.email} · {s.telefono}</Typography>
+          </Box>
+          <Button size="small" variant="outlined" onClick={() => navigate(`/inventory/suppliers/edit/${s.id}`)}>Editar</Button>
+          <Button size="small" color="error" variant="outlined" onClick={async () => {
+            if (!window.confirm('¿Eliminar este proveedor?')) return;
+            try { await deleteSupplier(s.id!); showMessage('Proveedor eliminado', 'success'); } catch (e) { showMessage('No se pudo eliminar', 'error'); }
+          }}>Eliminar</Button>
+        </Box>
+      ))}
+    </Box>
+  );
+};
+
+const SupplierForm: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const { showMessage } = useSnackbar();
+  const isEdit = Boolean(id);
+  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm<Supplier>({
+    defaultValues: { nombre: '', contacto: '', telefono: '', email: '', direccion: '', activo: true },
+  });
+
+  useEffect(() => {
+    if (!isEdit) return;
+    getSupplierById(id!).then((s) => {
+      if (s) Object.entries(s).forEach(([k, v]) => setValue(k as any, v as any));
+    });
+  }, [id, isEdit, setValue]);
+
+  const onSubmit = async (data: Supplier) => {
+    try {
+      if (isEdit) {
+        await updateSupplier(id!, data);
+        showMessage('Proveedor actualizado', 'success');
+      } else {
+        await addSupplier(data);
+        showMessage('Proveedor creado', 'success');
+      }
+      navigate('/inventory/suppliers');
+    } catch (e) {
+      console.error(e);
+      showMessage('No se pudo guardar el proveedor', 'error');
+    }
+  };
+
+  return (
+    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
+      <TextField label="Nombre" required {...register('nombre')} />
+      <TextField label="Contacto" {...register('contacto')} />
+      <TextField label="Teléfono" {...register('telefono')} />
+      <TextField label="Email" type="email" {...register('email')} />
+      <TextField label="Dirección" sx={{ gridColumn: { md: '1 / span 2' } }} {...register('direccion')} />
+      <FormControlLabel control={<Checkbox defaultChecked {...register('activo')} />} label="Activo" />
+      <Box sx={{ gridColumn: { md: '1 / span 2' }, display: 'flex', gap: 2 }}>
+        <Button type="submit" variant="contained" disabled={isSubmitting}>{isEdit ? 'Guardar Cambios' : 'Crear Proveedor'}</Button>
+        <Button variant="outlined" onClick={() => navigate('/inventory/suppliers')}>Cancelar</Button>
+      </Box>
+    </Box>
+  );
+};
+
 const Inventory: React.FC = () => {
   const navigate = useNavigate();
   return (
@@ -220,6 +418,9 @@ const Inventory: React.FC = () => {
         <Route index element={<ProductList />} />
         <Route path="add" element={<ProductForm />} />
         <Route path="edit/:id" element={<ProductForm />} />
+        <Route path="suppliers" element={<SupplierList />} />
+        <Route path="suppliers/add" element={<SupplierForm />} />
+        <Route path="suppliers/edit/:id" element={<SupplierForm />} />
         <Route path="categories" element={<Categories />} />
         <Route path="low-stock" element={<LowStock />} />
         <Route path="*" element={<Navigate to="/inventory" replace />} />

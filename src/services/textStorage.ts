@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 
 // Firestore tiene un límite de ~1 MiB por documento.
@@ -102,7 +102,6 @@ export async function getLargeText(
   docId: string,
   asBinary = false
 ): Promise<string | Uint8Array | null> {
-  const metaRef = doc(db, collectionName, docId);
   const chunksCol = collection(db, collectionName, docId, 'chunks');
 
   // Obtener metadata (opcional). Si no existe, intentar reconstruir igual.
