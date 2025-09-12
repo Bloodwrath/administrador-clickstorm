@@ -46,8 +46,8 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       (p) =>
         (p.nombre || '').toLowerCase().includes(t) ||
         (p.sku || '').toLowerCase().includes(t) ||
-        (p.categoria || '').toLowerCase().includes(t) ||
-        (p.supplierName || '').toLowerCase().includes(t)
+        ((p as any).categoria || '').toLowerCase().includes(t) ||
+        (((p as any).supplierName || '') as string).toLowerCase().includes(t)
     );
   }, [rows, search, lowStockOnly, filterSupplier, filterCategory]);
 
