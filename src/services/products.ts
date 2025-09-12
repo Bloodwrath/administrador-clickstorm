@@ -6,6 +6,8 @@ export type Product = {
   nombre: string;
   sku?: string;
   categoria?: string;
+  supplierId?: string;
+  supplierName?: string;
   precio: number;
   costo?: number;
   stock: number;
@@ -62,6 +64,7 @@ export async function searchProducts(term: string): Promise<Product[]> {
   return items.filter((p) =>
     (p.nombre || '').toLowerCase().includes(t) ||
     (p.sku || '').toLowerCase().includes(t) ||
-    (p.categoria || '').toLowerCase().includes(t)
+    (p.categoria || '').toLowerCase().includes(t) ||
+    (p.supplierName || '').toLowerCase().includes(t)
   );
 }

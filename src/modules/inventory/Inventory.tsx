@@ -351,8 +351,8 @@ const ProductForm: React.FC = () => {
           }
         }
         // Establecer proveedor si existe
-        if (p.supplierId) {
-          setSupplierId(p.supplierId);
+        if ((p as any).supplierId) {
+          setSupplierId((p as any).supplierId as string);
         }
       }
     });
