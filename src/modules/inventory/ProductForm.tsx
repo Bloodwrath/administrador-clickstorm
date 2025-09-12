@@ -2,12 +2,13 @@ import {
   Box, 
   Button, 
   TextField, 
-  FormControl, 
+  FormControl,
+  IconButton,
+  Checkbox,
   InputLabel, 
   Select, 
   MenuItem, 
   Typography, 
-  IconButton, 
   Paper, 
   Grid,
   Divider,
@@ -18,7 +19,12 @@ import {
   FormHelperText,
   CircularProgress
 } from '@mui/material';
-import { Add as AddIcon, Save as SaveIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  Delete as DeleteIcon, 
+  Edit as EditIcon, 
+  Save as SaveIcon
+} from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -234,7 +240,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     }
 
     // Validate package items if product type is package
-    if (data.tipo === 'paquete' && data.itemsPaquete.length === 0) {
+    if (data.tipo === 'paquete' && (!data.itemsPaquete || data.itemsPaquete.length === 0)) {
       enqueueSnackbar('Debe agregar al menos un producto al paquete', { variant: 'error' });
       return false;
     }

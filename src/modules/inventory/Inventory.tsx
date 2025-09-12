@@ -1,58 +1,77 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Box, Typography, Button, Container, Dialog, DialogContent, DialogTitle, DialogActions, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Save as SaveIcon } from '@mui/icons-material';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Container, 
+  Dialog, 
+  DialogContent, 
+  DialogTitle, 
+  DialogActions, 
+  FormControl, 
+  InputLabel, 
+  Select, 
+  MenuItem, 
+  Checkbox, 
+  FormControlLabel,
+  TextField
+} from '@mui/material';
+import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Save as SaveIcon, Image as ImageIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { useEffect, useMemo, useState } from 'react';
-import { Product, listenProducts, deleteProduct } from '../../services/products';
-// Import types from services
-import { Supplier as ApiSupplier, listSuppliers, listenSuppliers, addSupplier, updateSupplier, deleteSupplier, getSupplierById } from '../../services/suppliers';
+import { useForm } from 'react-hook-form';
+
+// Import components
+import ProductForm from './ProductForm';
+
+// Import services and types
+import { 
+  Product, 
+  ItemPaquete, 
+  listenProducts, 
+  deleteProduct, 
+  createProduct, 
+  updateProduct, 
+  getProductById 
+} from '../../services/products';
+import { 
+  Supplier as ApiSupplier, 
+  listSuppliers, 
+  listenSuppliers, 
+  addSupplier, 
+  updateSupplier, 
+  deleteSupplier, 
+  getSupplierById 
+} from '../../services/suppliers';
 import { saveLargeText, getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
-import { useForm } from 'react-hook-form';
-import TextField from '@mui/material/TextField';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 type Supplier = ApiSupplier & {
   // Extend the API supplier type if needed
 };
 
-interface Producto {
-  id?: string;
-  nombre: string;
-  codigoBarras?: string;
+// Alias para compatibilidad
+type Producto = Product & {
+  // Campos adicionales específicos del frontend
+  sku?: string;
+  categoria?: string;
+  supplierName?: string;
+  minStock?: number; // Alias para stockMinimo
+  hasImage?: boolean;
+  fechaCreacion?: Date | any;
+  fechaActualizacion?: Date | any;
+  createdAt?: Date | any; // Alias para fechaCreacion
+  updatedAt?: Date | any; // Alias para fechaActualizacion
+  creadoPor?: string;
+  historialPrecios?: any[];
+  etiquetas?: string[];
+  // Hacer obligatorios algunos campos opcionales del tipo Product
   descripcion: string;
   categoriaId: string;
   proveedorId: string;
-  material?: string;
-  precios: Array<{
-    cantidadMinima: number;
-    precio: number;
-    tipo: 'mayoreo' | 'menudeo';
-  }>;
-  moneda: string;
-  costo: number;
+  material: string;
   costoProduccion: number;
-  stock: number;
-  stockMinimo: number;
-  stockMaximo: number;
-  tipo: 'venta' | 'produccion' | 'paquete';
-  itemsPaquete?: Array<{
-    productoId: string;
-    cantidad: number;
-    tipo: 'venta' | 'produccion';
-  }>;
-  imagenes: string[];
-  activo: boolean;
-  fechaCreacion: Date;
-  fechaActualizacion: Date;
-  creadoPor: string;
-  historialPrecios: any[];
-  etiquetas: string[];
-  supplierId?: string;
-  supplierName?: string;
-}
+};
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -359,9 +378,6 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   );
 };
 
-// Import the ProductForm component
-import ProductForm from './ProductForm';
-import { createProduct, updateProduct, getProductById } from '../../services/products';
 
 // Formulario de producto (crear/editar)
 const ProductFormWrapper: React.FC = () => {
@@ -506,7 +522,7 @@ const SupplierList: React.FC = () => {
           <Button variant="contained" onClick={() => navigate('/inventory/suppliers/add')}>Agregar Proveedor</Button>
         </Box>
       </Box>
-      {rows.map((s) => (
+      {suppliers.map((s) => (
         <Box key={s.id} sx={{ display: 'flex', gap: 2, alignItems: 'center', py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ flex: 1 }}>
             <Typography fontWeight={600}>{s.nombre}</Typography>
