@@ -9,6 +9,7 @@ import Accounting from './modules/accounting/Accounting';
 import Inventory from './modules/inventory/Inventory';
 import Orders from './modules/orders/Orders';
 import Login from './modules/auth/Login';
+import SignUp from './modules/auth/SignUp';
 
 const App: React.FC = () => {
   const { currentUser, loading } = useAuth();
@@ -37,6 +38,10 @@ const App: React.FC = () => {
         <Route
           path="/login"
           element={!currentUser ? <Login /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/signup"
+          element={!currentUser ? <SignUp /> : <Navigate to="/" replace />}
         />
         <Route
           path="/"

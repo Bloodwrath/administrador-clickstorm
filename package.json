@@ -60,10 +60,7 @@
     "@babel/plugin-transform-react-jsx": "^7.27.1",
     "@babel/plugin-transform-typescript": "^7.28.0",
     "@types/react-router-dom": "^5.3.3",
-    "babel-plugin-module-resolver": "^5.0.2",
     "bfj": "^9.1.2",
-    "customize-cra": "^1.0.0",
-    "gh-pages": "^5.0.0",
-    "react-app-rewired": "^2.2.1"
+    "gh-pages": "^5.0.0"
   }
 }

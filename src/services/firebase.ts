@@ -1,8 +1,8 @@
 import { initializeApp, FirebaseApp, getApp } from 'firebase/app';
-import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, Firestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
-import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
-import { getFunctions, connectFunctionsEmulator, Functions } from 'firebase/functions';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 // Configuración de Firebase
 // Reemplaza estos valores con los de tu proyecto de Firebase

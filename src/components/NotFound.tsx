@@ -23,10 +23,10 @@ const NotFound: React.FC = () => {
           404
         </Typography>
         <Typography variant="h4" component="h2" gutterBottom>
-          Oops! Page not found
+          ¡Ups! Página no encontrada
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: '600px' }}>
-          The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+          La página que buscas pudo haber sido eliminada, cambiado de nombre o estar temporalmente no disponible.
         </Typography>
         <Button
           variant="contained"
@@ -34,7 +34,7 @@ const NotFound: React.FC = () => {
           onClick={() => navigate('/')}
           size="large"
         >
-          Go to Homepage
+          Ir al inicio
         </Button>
       </Box>
     </Container>

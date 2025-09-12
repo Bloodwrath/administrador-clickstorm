@@ -68,13 +68,6 @@ const AppBarStyled = styled(AppBar, {
   }),
 }));
 
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(0, 1),
-  ...theme.mixins.toolbar,
-  justifyContent: 'flex-end',
-}));
 
 const Layout: React.FC = () => {
   const theme = useTheme();
@@ -90,17 +83,17 @@ const Layout: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      showMessage('Successfully signed out', 'success');
+      showMessage('Sesión cerrada correctamente', 'success');
     } catch (error) {
-      showMessage('Error signing out', 'error');
+      showMessage('Error al cerrar sesión', 'error');
     }
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { text: 'Accounting', icon: <AccountingIcon />, path: '/accounting' },
-    { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
-    { text: 'Orders', icon: <OrdersIcon />, path: '/orders' },
+    { text: 'Panel', icon: <DashboardIcon />, path: '/' },
+    { text: 'Contabilidad', icon: <AccountingIcon />, path: '/accounting' },
+    { text: 'Inventario', icon: <InventoryIcon />, path: '/inventory' },
+    { text: 'Pedidos', icon: <OrdersIcon />, path: '/orders' },
   ];
 
   const drawer = (
@@ -133,7 +126,7 @@ const Layout: React.FC = () => {
           <ListItemIcon>
             <LogoutIcon />
           </ListItemIcon>
-          <ListItemText primary="Sign Out" />
+          <ListItemText primary="Cerrar sesión" />
         </ListItem>
       </List>
     </div>
@@ -154,7 +147,7 @@ const Layout: React.FC = () => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Business Management
+            Gestor de Negocios
           </Typography>
           <Typography variant="subtitle2">
             {currentUser?.email}

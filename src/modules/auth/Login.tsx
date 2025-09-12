@@ -29,22 +29,22 @@ const Login: React.FC = () => {
     e.preventDefault();
     
     if (!email || !password) {
-      showMessage('Please fill in all fields', 'error');
+      showMessage('Por favor completa todos los campos', 'error');
       return;
     }
 
     try {
       setLoading(true);
       await login(email, password);
-      showMessage('Successfully logged in', 'success');
+      showMessage('Sesión iniciada correctamente', 'success');
       navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
       const errorMessage = error.code === 'auth/user-not-found' 
-        ? 'No user found with this email' 
+        ? 'No existe un usuario con este correo' 
         : error.code === 'auth/wrong-password'
-        ? 'Incorrect password'
-        : 'Failed to log in. Please try again.';
+        ? 'Contraseña incorrecta'
+        : 'No se pudo iniciar sesión. Inténtalo de nuevo.';
       showMessage(errorMessage, 'error');
     } finally {
       setLoading(false);
@@ -72,7 +72,7 @@ const Login: React.FC = () => {
           }}
         >
           <Typography component="h1" variant="h5">
-            Sign in
+            Iniciar sesión
           </Typography>
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
             <TextField
@@ -80,7 +80,7 @@ const Login: React.FC = () => {
               required
               fullWidth
               id="email"
-              label="Email Address"
+              label="Correo electrónico"
               name="email"
               autoComplete="email"
               autoFocus
@@ -93,7 +93,7 @@ const Login: React.FC = () => {
               required
               fullWidth
               name="password"
-              label="Password"
+              label="Contraseña"
               type={showPassword ? 'text' : 'password'}
               id="password"
               autoComplete="current-password"
@@ -122,27 +122,20 @@ const Login: React.FC = () => {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 'Sign In'}
+              {loading ? <CircularProgress size={24} /> : 'Iniciar sesión'}
             </Button>
             <Box sx={{ textAlign: 'center', mt: 2 }}>
-              <Link href="#" variant="body2" onClick={() => showMessage('Contact support to reset your password', 'info')}>
-                Forgot password?
+              <Link href="#" variant="body2" onClick={() => showMessage('Contacta al soporte para restablecer tu contraseña', 'info')}>
+                ¿Olvidaste tu contraseña?
               </Link>
             </Box>
           </Box>
         </Paper>
         <Box sx={{ mt: 3, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary">
-            Don't have an account?{' '}
-            <Link 
-              href="#" 
-              variant="body2" 
-              onClick={(e) => {
-                e.preventDefault();
-                showMessage('Contact support to create an account', 'info');
-              }}
-            >
-              Contact Support
+            ¿No tienes cuenta?{' '}
+            <Link href="#" variant="body2" onClick={(e) => { e.preventDefault(); navigate('/signup'); }}>
+              Crear cuenta
             </Link>
           </Typography>
         </Box>
