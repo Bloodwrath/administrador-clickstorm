@@ -92,10 +92,29 @@ const OrderList = () => {
                     {order.status}
                   </Typography>
                 </TableCell>
-                <TableCell>{order.createdAt?.toLocaleDateString()}</TableCell>
+                <TableCell>{
+  order.createdAt 
+    ? (order.createdAt instanceof Date 
+        ? order.createdAt.toLocaleDateString() 
+        : order.createdAt.toDate().toLocaleDateString())
+    : ''
+}</TableCell>
                 <TableCell>
                   <Button size="small" onClick={() => navigate(`/orders/${order.id}`)}>Ver</Button>
-                  <IconButton onClick={() => generatePdf(order)}>
+                  <IconButton onClick={() => {
+                    const { id, customerName, customerEmail, customerPhone, items, subtotal, tax, total, status } = order;
+                    generatePdf({
+                      id,
+                      customerName,
+                      customerEmail,
+                      customerPhone,
+                      items,
+                      subtotal,
+                      tax,
+                      total,
+                      status
+                    });
+                  }}>
                     <PdfIcon color="error" />
                   </IconButton>
                 </TableCell>
@@ -188,7 +207,18 @@ const NewOrder = () => {
       });
       
       // Generate and download PDF
-      const pdfDoc = generatePdf({ ...order, id: docRef.id });
+      const { customerName, customerEmail, customerPhone, items, subtotal, tax, total, status } = order;
+      const pdfDoc = generatePdf({
+        id: docRef.id,
+        customerName,
+        customerEmail,
+        customerPhone,
+        items,
+        subtotal,
+        tax,
+        total,
+        status
+      });
       
       // Redirect to order list
       navigate('/orders');
@@ -345,7 +375,21 @@ const OrderDetails = () => {
         <Button 
           variant="contained" 
           startIcon={<PdfIcon />}
-          onClick={() => order && generatePdf(order)}
+          onClick={() => {
+            if (!order) return;
+            const { id, customerName, customerEmail, customerPhone, items, subtotal, tax, total, status } = order;
+            generatePdf({
+              id,
+              customerName,
+              customerEmail,
+              customerPhone,
+              items,
+              subtotal,
+              tax,
+              total,
+              status
+            });
+          }}
         >
           Descargar PDF
         </Button>
@@ -357,7 +401,13 @@ const OrderDetails = () => {
         <Typography>Correo: {order.customerEmail}</Typography>
         <Typography>Teléfono: {order.customerPhone}</Typography>
         <Typography>Estado: {order.status}</Typography>
-        <Typography>Fecha: {order.createdAt?.toLocaleString()}</Typography>
+        <Typography>Fecha: {
+          order.createdAt 
+            ? (order.createdAt instanceof Date 
+                ? order.createdAt.toLocaleString() 
+                : order.createdAt.toDate().toLocaleString())
+            : ''
+        }</Typography>
       </Box>
 
       <TableContainer component={Paper} sx={{ mb: 3 }}>
@@ -406,7 +456,7 @@ const SalesReports = () => (
 );
 
 // Helper function to generate PDF
-const generatePdf = (order: Order) => {
+const generatePdf = (order: Omit<Order, 'createdAt' | 'updatedAt'> & { createdAt?: Date | Timestamp }) => {
   const doc = new jsPDF();
   
   // Add title
@@ -415,7 +465,7 @@ const generatePdf = (order: Order) => {
   doc.setFontSize(12);
   
   // Add order info
-  doc.text(`Orden #${order.id?.substring(0, 8)}`, 14, 32);
+  doc.text(`Orden #${order.id ? order.id.substring(0, 8) : ''}`, 14, 32);
   doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 40);
   doc.text(`Cliente: ${order.customerName}`, 14, 48);
   doc.text(`Correo: ${order.customerEmail}`, 14, 56);
@@ -455,7 +505,7 @@ const generatePdf = (order: Order) => {
   doc.text(`Total: $${order.total.toFixed(2)}`, 14, finalY + 20);
   
   // Save the PDF
-  doc.save(`pedido-${order.id?.substring(0, 8)}.pdf`);
+  doc.save(`pedido-${order.id ? order.id.substring(0, 8) : 'nuevo'}.pdf`);
   
   return doc;
 };
