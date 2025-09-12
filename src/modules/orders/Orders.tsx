@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, Container } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 
@@ -33,6 +33,7 @@ const SalesReports = () => (
 );
 
 const Orders: React.FC = () => {
+  const navigate = useNavigate();
   return (
     <Container maxWidth="xl">
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -41,7 +42,7 @@ const Orders: React.FC = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => window.location.href = '/orders/new'}
+          onClick={() => navigate('new')}
         >
           New Order
         </Button>

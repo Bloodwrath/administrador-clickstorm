@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link as RouterLink } from 'react-router-dom';
 import { styled, useTheme } from '@mui/material/styles';
 import {
   AppBar,
@@ -113,12 +113,12 @@ const Layout: React.FC = () => {
       <Divider />
       <List>
         {menuItems.map((item) => (
-          <ListItem 
-            button 
-            key={item.text} 
-            component="a" 
-            href={item.path}
-            onClick={(e) => {
+          <ListItem
+            button
+            key={item.text}
+            component={RouterLink}
+            to={item.path}
+            onClick={() => {
               if (isMobile) setMobileOpen(false);
             }}
           >
