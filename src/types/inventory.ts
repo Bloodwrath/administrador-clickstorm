@@ -25,6 +25,20 @@ export interface ImagenProducto {
   esPrincipal: boolean;
 }
 
+export type TipoProducto = 'venta' | 'produccion' | 'paquete';
+
+export interface PrecioCantidad {
+  cantidadMinima: number;
+  precio: number;
+  tipo: 'mayoreo' | 'menudeo';
+}
+
+export interface PaqueteItem {
+  productoId: string;
+  cantidad: number;
+  tipo: 'venta' | 'produccion';
+}
+
 export interface Producto {
   id?: string; // ID generado por Firestore
   codigoBarras?: string;
@@ -34,17 +48,36 @@ export interface Producto {
   proveedorId: string;
   dimensiones: Dimensiones;
   material: string;
-  precioActual: number;
+  
+  // Precios dinámicos basados en cantidad
+  precios: PrecioCantidad[];
   moneda: string;
+  
+  // Costos
   costo: number;
+  costoProduccion?: number;
+  
+  // Inventario
   stock: number;
   stockMinimo: number;
   stockMaximo: number;
+  
+  // Tipo de producto
+  tipo: TipoProducto;
+  
+  // Solo para paquetes
+  itemsPaquete?: PaqueteItem[];
+  
+  // Imágenes y estado
   imagenes: ImagenProducto[];
   activo: boolean;
+  
+  // Auditoría
   fechaCreacion: Date;
   fechaActualizacion: Date;
   creadoPor: string; // ID del usuario
+  
+  // Historial
   historialPrecios: PrecioHistorico[];
   etiquetas: string[];
   ubicacion?: string;

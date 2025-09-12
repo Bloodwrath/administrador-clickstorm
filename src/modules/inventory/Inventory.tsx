@@ -1,11 +1,12 @@
 import React from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Box, Typography, Button, Container, Dialog, DialogContent, DialogTitle, DialogActions, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
-import { Add as AddIcon, SaveAlt as ExportIcon, Image as ImageIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Save as SaveIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useEffect, useMemo, useState } from 'react';
 import { Product, listenProducts, deleteProduct } from '../../services/products';
-import { Supplier, listSuppliers, listenSuppliers, addSupplier, updateSupplier, deleteSupplier, getSupplierById } from '../../services/suppliers';
+// Import types from services
+import { Supplier as ApiSupplier, listSuppliers, listenSuppliers, addSupplier, updateSupplier, deleteSupplier, getSupplierById } from '../../services/suppliers';
 import { saveLargeText, getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
 import { useForm } from 'react-hook-form';
@@ -13,11 +14,51 @@ import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+type Supplier = ApiSupplier & {
+  // Extend the API supplier type if needed
+};
+
+interface Producto {
+  id?: string;
+  nombre: string;
+  codigoBarras?: string;
+  descripcion: string;
+  categoriaId: string;
+  proveedorId: string;
+  material?: string;
+  precios: Array<{
+    cantidadMinima: number;
+    precio: number;
+    tipo: 'mayoreo' | 'menudeo';
+  }>;
+  moneda: string;
+  costo: number;
+  costoProduccion: number;
+  stock: number;
+  stockMinimo: number;
+  stockMaximo: number;
+  tipo: 'venta' | 'produccion' | 'paquete';
+  itemsPaquete?: Array<{
+    productoId: string;
+    cantidad: number;
+    tipo: 'venta' | 'produccion';
+  }>;
+  imagenes: string[];
+  activo: boolean;
+  fechaCreacion: Date;
+  fechaActualizacion: Date;
+  creadoPor: string;
+  historialPrecios: any[];
+  etiquetas: string[];
+  supplierId?: string;
+  supplierName?: string;
+}
+
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
   const navigate = useNavigate();
   const { showMessage } = useSnackbar();
-  const [rows, setRows] = useState<Product[]>([]);
+  const [rows, setRows] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');
   const [filterSupplier, setFilterSupplier] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
@@ -57,7 +98,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       headerName: 'Imagen',
       width: 200,
       sortable: false,
-      renderCell: (params: GridRenderCellParams<Product>) => (
+      renderCell: (params: GridRenderCellParams<Producto>) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             size="small"
@@ -113,7 +154,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       headerName: 'Nombre', 
       flex: 1, 
       minWidth: 160,
-      renderCell: (params: GridRenderCellParams<Product>) => (
+      renderCell: (params: GridRenderCellParams<Producto>) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {params.row.hasImage && <ImageIcon fontSize="small" color="action" titleAccess="Con imagen" />}
           <span>{params.row.nombre}</span>
@@ -137,7 +178,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       headerName: 'Acciones',
       width: 200,
       sortable: false,
-      renderCell: (params: GridRenderCellParams<Product>) => (
+      renderCell: (params: GridRenderCellParams<Producto>) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button size="small" variant="outlined" onClick={() => navigate(`/inventory/edit/${params.row.id}`)}>
             Editar
@@ -220,7 +261,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
           <Button
             size="small"
             variant="outlined"
-            startIcon={<ExportIcon />}
+            startIcon={<SaveIcon />}
             onClick={() => {
               // Exportar CSV de los elementos filtrados
               const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
@@ -257,7 +298,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
           <Button
             size="small"
             variant="outlined"
-            startIcon={<ExportIcon />}
+            startIcon={<SaveIcon />}
             onClick={() => {
               // Exportar como Excel (XLS) usando tabla HTML (compatible con Excel)
               const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
@@ -318,148 +359,83 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   );
 };
 
+// Import the ProductForm component
+import ProductForm from './ProductForm';
+import { createProduct, updateProduct, getProductById } from '../../services/products';
+
 // Formulario de producto (crear/editar)
-const ProductForm: React.FC = () => {
+const ProductFormWrapper: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { showMessage } = useSnackbar();
   const isEdit = Boolean(id);
-  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm<Product>({
-    defaultValues: {
-      nombre: '', sku: '', categoria: '', precio: 0, costo: 0, stock: 0, minStock: 0, descripcion: '', activo: true,
-    },
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialData, setInitialData] = useState<Partial<Producto>>({});
 
+  // Load product data if in edit mode
   useEffect(() => {
-    // cargar lista de proveedores
-    listSuppliers().then(setSuppliers).catch((e) => console.warn('No se pudieron cargar proveedores', e));
-    if (!isEdit) return;
-    import('../../services/products').then(async ({ getProductById }) => {
-      const p = await getProductById(id!);
-      if (p) {
-        Object.entries(p).forEach(([k, v]) => setValue(k as any, v as any));
-        // Cargar vista previa si ya tiene imagen
-        if (p.hasImage) {
-          try {
-            const bytes = (await getLargeText('productos_files', id!, true)) as Uint8Array | null;
-            if (bytes) {
-              const blob = new Blob([bytes], { type: 'image/*' });
-              setPreviewUrl(URL.createObjectURL(blob));
-            }
-          } catch (e) {
-            console.warn('No se pudo cargar la imagen existente', e);
-          }
+    const loadProduct = async () => {
+      if (!isEdit || !id) return;
+      
+      setIsLoading(true);
+      try {
+        const product = await getProductById(id);
+        if (product) {
+          setInitialData({
+            ...product,
+            // Ensure dates are properly parsed
+            fechaCreacion: product.fechaCreacion?.toDate ? product.fechaCreacion.toDate() : new Date(),
+            fechaActualizacion: product.fechaActualizacion?.toDate ? product.fechaActualizacion.toDate() : new Date(),
+          });
         }
-        // Establecer proveedor si existe
-        if ((p as any).supplierId) {
-          setSupplierId((p as any).supplierId as string);
-        }
+      } catch (error) {
+        console.error('Error loading product:', error);
+        showMessage('Error al cargar el producto', 'error');
+      } finally {
+        setIsLoading(false);
       }
-    });
-  }, [id, isEdit, setValue]);
+    };
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [supplierId, setSupplierId] = useState<string>('');
+    loadProduct();
+  }, [id, isEdit, showMessage]);
 
-  const onSubmit = async (data: Product) => {
+  const handleSubmitForm = async (data: Producto) => {
     try {
-      // Resolver supplierName a partir de selección
-      if (supplierId) {
-        const sup = suppliers.find((s) => s.id === supplierId);
-        if (sup) {
-          data.supplierId = sup.id;
-          data.supplierName = sup.nombre;
-        }
+      setIsLoading(true);
+      
+      if (isEdit && id) {
+        await updateProduct(id, data);
+        showMessage('Producto actualizado correctamente', 'success');
       } else {
-        data.supplierId = undefined;
-        data.supplierName = undefined;
+        await createProduct({
+          ...data,
+          creadoPor: 'currentUserId', // TODO: Replace with actual user ID
+          fechaCreacion: new Date(),
+          activo: true,
+        });
+        showMessage('Producto creado correctamente', 'success');
       }
-      if (isEdit) {
-        const { updateProduct } = await import('../../services/products');
-        await updateProduct(id!, data);
-        // Si se adjuntó nueva imagen, guardarla y marcar flag
-        if (imageFile) {
-          const buf = await imageFile.arrayBuffer();
-          await saveLargeText('productos_files', id!, new Uint8Array(buf), { encode: 'base64' });
-          await updateProduct(id!, { hasImage: true });
-        }
-        showMessage('Producto actualizado', 'success');
-      } else {
-        const { addProduct, updateProduct } = await import('../../services/products');
-        // Crear primero para obtener el id
-        const newId = await addProduct({ ...data, hasImage: false });
-        if (imageFile) {
-          const buf = await imageFile.arrayBuffer();
-          await saveLargeText('productos_files', newId, new Uint8Array(buf), { encode: 'base64' });
-          await updateProduct(newId, { hasImage: true });
-        }
-        showMessage('Producto creado', 'success');
-      }
+      
       navigate('/inventory');
-    } catch (e) {
-      console.error(e);
-      showMessage('No se pudo guardar el producto', 'error');
+    } catch (error) {
+      console.error('Error saving product:', error);
+      showMessage('Error al guardar el producto', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  if (isLoading && isEdit) {
+    return <div>Cargando producto...</div>;
+  }
+
   return (
-    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-      <TextField label="Nombre" required {...register('nombre')} />
-      <TextField label="SKU" {...register('sku')} />
-      <TextField label="Categoría" {...register('categoria')} />
-      <FormControl>
-        <InputLabel id="supplier-label">Proveedor</InputLabel>
-        <Select
-          labelId="supplier-label"
-          label="Proveedor"
-          value={supplierId}
-          onChange={(e) => setSupplierId(e.target.value as string)}
-        >
-          <MenuItem value=""><em>Sin proveedor</em></MenuItem>
-          {suppliers.map((s) => (
-            <MenuItem key={s.id} value={s.id}>{s.nombre}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <TextField label="Precio" type="number" inputProps={{ step: '0.01' }} {...register('precio', { valueAsNumber: true })} />
-      <TextField label="Costo" type="number" inputProps={{ step: '0.01' }} {...register('costo', { valueAsNumber: true })} />
-      <TextField label="Stock" type="number" {...register('stock', { valueAsNumber: true })} />
-      <TextField label="Stock mínimo" type="number" {...register('minStock', { valueAsNumber: true })} />
-      <TextField label="Descripción" multiline minRows={3} sx={{ gridColumn: { md: '1 / span 2' } }} {...register('descripcion')} />
-      <Box sx={{ gridColumn: { md: '1 / span 2' } }}>
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>Imagen principal (opcional)</Typography>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const f = e.target.files?.[0] || null;
-            setImageFile(f);
-            if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
-            if (f) setPreviewUrl(URL.createObjectURL(f));
-          }}
-        />
-        {previewUrl && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1 }}>Vista previa (haz clic para ampliar):</Typography>
-            <img
-              src={previewUrl}
-              alt="Vista previa"
-              style={{ maxWidth: '300px', maxHeight: '200px', cursor: 'zoom-in' }}
-              onClick={() => window.open(previewUrl!, '_blank')}
-            />
-          </Box>
-        )}
-      </Box>
-      <FormControlLabel control={<Checkbox defaultChecked {...register('activo')} />} label="Activo" />
-      <Box sx={{ gridColumn: { md: '1 / span 2' }, display: 'flex', gap: 2 }}>
-        <Button type="submit" variant="contained" disabled={isSubmitting}>
-          {isEdit ? 'Guardar Cambios' : 'Crear Producto'}
-        </Button>
-        <Button variant="outlined" onClick={() => navigate('/inventory')}>Cancelar</Button>
-      </Box>
-    </Box>
+    <ProductForm 
+      onSubmit={handleSubmitForm} 
+      isEdit={isEdit} 
+      productId={id}
+      initialData={initialData}
+    />
   );
 };
 
@@ -481,13 +457,27 @@ const LowStock: React.FC = () => (
 const SupplierList: React.FC = () => {
   const navigate = useNavigate();
   const { showMessage } = useSnackbar();
-  const [rows, setRows] = useState<Supplier[]>([]);
+  // Use the ApiSupplier type from the services
+  const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
 
   useEffect(() => {
-    const unsub = listenSuppliers(setRows);
+    const unsub = listenSuppliers((suppliers) => {
+      // Ensure we have valid supplier data before updating state
+      const validSuppliers = suppliers.filter((s): s is ApiSupplier => Boolean(s?.id));
+      setSuppliers(validSuppliers);
+    });
     return () => unsub();
   }, []);
-
+  const handleDeleteSupplier = async (id: string) => {
+    if (!id || !window.confirm('¿Eliminar este proveedor?')) return;
+    try {
+      await deleteSupplier(id);
+      showMessage('Proveedor eliminado', 'success');
+    } catch (e) {
+      console.error('Error deleting supplier:', e);
+      showMessage('No se pudo eliminar el proveedor', 'error');
+    }
+  };
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -496,7 +486,7 @@ const SupplierList: React.FC = () => {
           <Button variant="outlined" onClick={() => {
             const headers = ['Nombre','Contacto','Teléfono','Email','Dirección','Activo'];
             const lines = [headers.join(',')];
-            rows.forEach((s) => {
+            suppliers.forEach((s) => {
               const row = [
                 s.nombre ?? '', s.contacto ?? '', s.telefono ?? '', s.email ?? '', s.direccion ?? '', s.activo ? 'Sí' : 'No'
               ];
@@ -598,8 +588,8 @@ const Inventory: React.FC = () => {
       </Box>
       <Routes>
         <Route index element={<ProductList />} />
-        <Route path="add" element={<ProductForm />} />
-        <Route path="edit/:id" element={<ProductForm />} />
+        <Route path="add" element={<ProductFormWrapper />} />
+        <Route path="edit/:id" element={<ProductFormWrapper />} />
         <Route path="suppliers" element={<SupplierList />} />
         <Route path="suppliers/add" element={<SupplierForm />} />
         <Route path="suppliers/edit/:id" element={<SupplierForm />} />
