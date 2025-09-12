@@ -6,29 +6,29 @@ import { Add as AddIcon } from '@mui/icons-material';
 // Placeholder components for different order sections
 const OrderList = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Orders</Typography>
-    <Typography>List of all orders will be displayed here.</Typography>
+    <Typography variant="h4" gutterBottom>Pedidos</Typography>
+    <Typography>Aquí se mostrará la lista de todos los pedidos.</Typography>
   </Box>
 );
 
 const NewOrder = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>New Order</Typography>
-    <Typography>Form to create a new order will be displayed here.</Typography>
+    <Typography variant="h4" gutterBottom>Nuevo Pedido</Typography>
+    <Typography>Aquí se mostrará el formulario para crear un nuevo pedido.</Typography>
   </Box>
 );
 
 const OrderDetails = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Order Details</Typography>
-    <Typography>Detailed view of a specific order will be displayed here.</Typography>
+    <Typography variant="h4" gutterBottom>Detalle de Pedido</Typography>
+    <Typography>Aquí se mostrará el detalle de un pedido específico.</Typography>
   </Box>
 );
 
 const SalesReports = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Sales Reports</Typography>
-    <Typography>Sales reports and analytics will be displayed here.</Typography>
+    <Typography variant="h4" gutterBottom>Reportes de Ventas</Typography>
+    <Typography>Aquí se mostrarán los reportes y analítica de ventas.</Typography>
   </Box>
 );
 
@@ -37,14 +37,14 @@ const Orders: React.FC = () => {
   return (
     <Container maxWidth="xl">
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Order Management</Typography>
+        <Typography variant="h4">Gestión de Pedidos</Typography>
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={() => navigate('new')}
         >
-          New Order
+          Nuevo Pedido
         </Button>
       </Box>
       

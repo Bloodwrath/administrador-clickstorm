@@ -100,7 +100,7 @@ const Layout: React.FC = () => {
     <div>
       <Toolbar>
         <Typography variant="h6" noWrap component="div">
-          Business Manager
+          Administrador ClickStorm
         </Typography>
       </Toolbar>
       <Divider />

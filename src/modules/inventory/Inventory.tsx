@@ -6,29 +6,29 @@ import { Add as AddIcon } from '@mui/icons-material';
 // Placeholder components for different inventory sections
 const ProductList = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Products</Typography>
-    <Typography>List of all products will be displayed here.</Typography>
+    <Typography variant="h4" gutterBottom>Productos</Typography>
+    <Typography>Aquí se mostrará la lista de todos los productos.</Typography>
   </Box>
 );
 
 const AddProduct = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Add New Product</Typography>
-    <Typography>Form to add a new product will be displayed here.</Typography>
+    <Typography variant="h4" gutterBottom>Agregar Nuevo Producto</Typography>
+    <Typography>Aquí se mostrará el formulario para agregar un nuevo producto.</Typography>
   </Box>
 );
 
 const Categories = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Categories</Typography>
-    <Typography>Product categories will be managed here.</Typography>
+    <Typography variant="h4" gutterBottom>Categorías</Typography>
+    <Typography>Aquí podrás administrar las categorías de productos.</Typography>
   </Box>
 );
 
 const LowStock = () => (
   <Box>
-    <Typography variant="h4" gutterBottom>Low Stock Items</Typography>
-    <Typography>Products with low stock levels will be listed here.</Typography>
+    <Typography variant="h4" gutterBottom>Artículos con Bajo Stock</Typography>
+    <Typography>Aquí se listarán los productos con bajo nivel de stock.</Typography>
   </Box>
 );
 
@@ -37,14 +37,14 @@ const Inventory: React.FC = () => {
   return (
     <Container maxWidth="xl">
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Inventory Management</Typography>
+        <Typography variant="h4">Gestión de Inventario</Typography>
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={() => navigate('add')}
         >
-          Add Product
+          Agregar Producto
         </Button>
       </Box>
       

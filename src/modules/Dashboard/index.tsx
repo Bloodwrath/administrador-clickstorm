@@ -51,10 +51,10 @@ const recentOrders = [
 ];
 
 const stats = [
-  { title: 'Total Sales', value: '$12,345', change: '+12%', isPositive: true, icon: <MoneyIcon fontSize="large" color="primary" /> },
-  { title: 'Orders', value: '156', change: '+5%', isPositive: true, icon: <OrdersIcon fontSize="large" color="secondary" /> },
-  { title: 'Inventory Items', value: '1,234', change: '-2%', isPositive: false, icon: <InventoryIcon fontSize="large" color="action" /> },
-  { title: 'Revenue', value: '$45,678', change: '+8%', isPositive: true, icon: <TrendingUpIcon fontSize="large" color="success" /> },
+  { title: 'Ventas Totales', value: '$12,345', change: '+12%', isPositive: true, icon: <MoneyIcon fontSize="large" color="primary" /> },
+  { title: 'Pedidos', value: '156', change: '+5%', isPositive: true, icon: <OrdersIcon fontSize="large" color="secondary" /> },
+  { title: 'Artículos en Inventario', value: '1,234', change: '-2%', isPositive: false, icon: <InventoryIcon fontSize="large" color="action" /> },
+  { title: 'Ingresos', value: '$45,678', change: '+8%', isPositive: true, icon: <TrendingUpIcon fontSize="large" color="success" /> },
 ];
 
 const Dashboard: React.FC = () => {
@@ -90,10 +90,10 @@ const Dashboard: React.FC = () => {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Dashboard
+        Panel
       </Typography>
       <Typography color="textSecondary" paragraph>
-        Welcome back! Here's what's happening with your business today.
+        ¡Bienvenido! Esto es lo que está pasando con tu negocio hoy.
       </Typography>
 
       {/* Stats Cards */}
@@ -110,7 +110,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              Sales Overview
+              Resumen de Ventas
             </Typography>
             <Box sx={{ height: 300, mt: 3 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="sales" fill={theme.palette.primary.main} name="Sales ($)" />
+                  <Bar dataKey="sales" fill={theme.palette.primary.main} name="Ventas ($)" />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
@@ -132,7 +132,7 @@ const Dashboard: React.FC = () => {
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
               <WarningIcon color="warning" sx={{ mr: 1 }} />
-              Low Stock Items
+              Artículos con Bajo Stock
             </Typography>
             <List>
               {lowStockItems.map((item) => (
@@ -164,7 +164,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Recent Orders
+              Pedidos Recientes
             </Typography>
             <List>
               {recentOrders.map((order) => (
@@ -197,7 +197,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              Quick Actions
+              Acciones Rápidas
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={6}>
@@ -214,7 +214,7 @@ const Dashboard: React.FC = () => {
                   onClick={() => navigate('/accounting/new-purchase')}
                 >
                   <AccountingIcon color="primary" fontSize="large" />
-                  <Typography>New Purchase</Typography>
+                  <Typography>Nueva Compra</Typography>
                 </Paper>
               </Grid>
               <Grid item xs={6}>
@@ -231,7 +231,7 @@ const Dashboard: React.FC = () => {
                   onClick={() => navigate('/inventory/add')}
                 >
                   <InventoryIcon color="primary" fontSize="large" />
-                  <Typography>Add Inventory</Typography>
+                  <Typography>Agregar Inventario</Typography>
                 </Paper>
               </Grid>
               <Grid item xs={6}>
@@ -248,7 +248,7 @@ const Dashboard: React.FC = () => {
                   onClick={() => navigate('/orders/new')}
                 >
                   <OrdersIcon color="primary" fontSize="large" />
-                  <Typography>New Order</Typography>
+                  <Typography>Nuevo Pedido</Typography>
                 </Paper>
               </Grid>
               <Grid item xs={6}>
@@ -265,7 +265,7 @@ const Dashboard: React.FC = () => {
                   onClick={() => navigate('/accounting/reports')}
                 >
                   <MoneyIcon color="primary" fontSize="large" />
-                  <Typography>View Reports</Typography>
+                  <Typography>Ver Reportes</Typography>
                 </Paper>
               </Grid>
             </Grid>
