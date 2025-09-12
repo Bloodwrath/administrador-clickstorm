@@ -230,7 +230,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
                   p.nombre ?? '',
                   p.sku ?? '',
                   p.categoria ?? '',
-                  p.supplierName ?? '',
+                  ((p as any).supplierName ?? ''),
                   String(p.precio ?? ''),
                   String(p.costo ?? ''),
                   String(p.stock ?? ''),
@@ -266,7 +266,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
                 `<td>${(p.nombre??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`+
                 `<td>${(p.sku??'')}</td>`+
                 `<td>${(p.categoria??'')}</td>`+
-                `<td>${(p.supplierName??'')}</td>`+
+                `<td>${(((p as any).supplierName??''))}</td>`+
                 `<td>${p.precio??''}</td>`+
                 `<td>${p.costo??''}</td>`+
                 `<td>${p.stock??''}</td>`+
