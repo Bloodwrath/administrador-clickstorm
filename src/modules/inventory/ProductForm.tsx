@@ -9,33 +9,24 @@ import {
   Select, 
   MenuItem, 
   Typography, 
-  Paper, 
-  Grid,
-  Divider,
-  FormControlLabel,
-  Switch,
-  SelectChangeEvent,
-  InputAdornment,
-  FormHelperText,
-  CircularProgress
+  CircularProgress,
+  FormControlLabel
 } from '@mui/material';
+import { Delete as DeleteIcon } from '@mui/icons-material';
 import { 
   Add as AddIcon, 
-  Delete as DeleteIcon, 
-  Edit as EditIcon, 
   Save as SaveIcon
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 
 // Import types from services
 import { 
   Product, 
-  Precio as ServicePrecio, 
   ItemPaquete as ServiceItemPaquete,
-  type Precio 
+  type Precio
 } from '../../services/products';
 
 // Define interfaces
@@ -93,9 +84,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     handleSubmit, 
     setValue, 
     watch, 
-    formState: { isSubmitting, errors },
-    trigger,
-    clearErrors
+    formState: { isSubmitting }
   } = useForm<Producto>({
     defaultValues: {
       nombre: '',
@@ -124,8 +113,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     },
   });
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [suppliers] = useState<Supplier[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -148,7 +136,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     };
     
     loadSuppliers();
-  }, []);
+  }, [enqueueSnackbar]);
 
   // Load suppliers and product data
   useEffect(() => {
@@ -213,8 +201,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setImageFile(file);
     
     // Create preview URL
     const fileReader = new FileReader();

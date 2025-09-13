@@ -17,7 +17,7 @@ import {
   FormControlLabel,
   TextField
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon, Save as SaveIcon, Image as ImageIcon } from '@mui/icons-material';
+import { Add as AddIcon, Image as ImageIcon, Save as SaveIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useForm } from 'react-hook-form';
 
@@ -31,13 +31,11 @@ import {
   deleteProduct, 
   createProduct, 
   updateProduct, 
-  getProductById,
-  type ItemPaquete as ServiceItemPaquete
+  getProductById
 } from '../../services/products';
 
 import { 
   Supplier as ApiSupplier, 
-  listSuppliers, 
   listenSuppliers, 
   addSupplier, 
   updateSupplier, 
@@ -45,14 +43,11 @@ import {
   getSupplierById 
 } from '../../services/suppliers';
 
-import { saveLargeText, getLargeText } from '../../services/textStorage';
+import { getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
 
 // Import types from ProductForm
 import type { Producto } from './ProductForm';
-
-// Alias to avoid naming conflict
-type ItemPaquete = ServiceItemPaquete;
 
 type Supplier = ApiSupplier & {
   // Extend the API supplier type if needed
@@ -530,16 +525,6 @@ const SupplierList: React.FC = () => {
     });
     return () => unsub();
   }, []);
-  const handleDeleteSupplier = async (id: string) => {
-    if (!id || !window.confirm('¿Eliminar este proveedor?')) return;
-    try {
-      await deleteSupplier(id);
-      showMessage('Proveedor eliminado', 'success');
-    } catch (e) {
-      console.error('Error deleting supplier:', e);
-      showMessage('No se pudo eliminar el proveedor', 'error');
-    }
-  };
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
