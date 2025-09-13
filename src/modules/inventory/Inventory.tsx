@@ -45,7 +45,7 @@ import {
   useMediaQuery
 } from '@mui/material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 // Import services and types
 import { 
   Product as ProductServiceType, 
@@ -483,7 +483,6 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
             startIcon={<SaveIcon />}
             onClick={() => {
               // Exportar CSV de los elementos filtrados
-              const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
               const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
               const lines = [headers.join(',')];
               
@@ -622,7 +621,7 @@ const ProductFormWrapper = () => {
   const isEdit = !!id;
   const navigate = useNavigate();
   const { showMessage } = useSnackbar();
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [initialData, setInitialData] = useState<Partial<Producto>>({});
   const [open, setOpen] = useState(true);
