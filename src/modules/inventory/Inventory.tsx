@@ -1,32 +1,54 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useContext } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
   Button, 
-  Container, 
-  Dialog, 
-  DialogContent, 
-  DialogTitle, 
-  DialogActions, 
+  TextField, 
+  InputAdornment, 
+  IconButton, 
+  Paper, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  TablePagination, 
   FormControl, 
   InputLabel, 
   Select, 
   MenuItem, 
-  Checkbox, 
+  SelectChangeEvent,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  CardMedia,
+  Checkbox,
   FormControlLabel,
-  TextField
+  FormGroup,
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  CircularProgress,
+  LinearProgress,
+  Divider,
+  Chip,
+  Avatar,
+  Tooltip,
+  Badge,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Image as ImageIcon, Save as SaveIcon } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { useForm } from 'react-hook-form';
-
-// Import components
-import ProductForm from './ProductForm';
-
+import { AuthContext } from '../../context/AuthContext';
 // Import services and types
 import { 
-  Product, 
+  Product as ProductServiceType, 
   listenProducts, 
   deleteProduct, 
   createProduct, 
@@ -35,7 +57,7 @@ import {
 } from '../../services/products';
 
 import { 
-  Supplier as ApiSupplier, 
+  Supplier,
   listenSuppliers, 
   addSupplier, 
   updateSupplier, 
@@ -43,11 +65,13 @@ import {
   getSupplierById 
 } from '../../services/suppliers';
 
+type SupplierType = Supplier;
+
 import { getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
 
 import { Producto, ImagenProducto, PrecioCantidad } from '../../types/inventory';
-import type { Product } from '../../types/product';
+import type { Product as ProductType } from '../../types/product';
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -89,6 +113,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
           proveedorId: product.proveedorId || product.proveedor || '',
           material: product.material || '',
           costoProduccion: product.costoProduccion || 0,
+          hasImage: product.imagenes && product.imagenes.length > 0,
           dimensiones: product.dimensiones || { ancho: 0, alto: 0, unidad: 'cm' },
           precios: (product.precios || [
             { 
@@ -159,29 +184,54 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   }, []);
 
   const filtered = useMemo(() => {
-    const t = search.trim().toLowerCase();
-    let items = rows;
+    const searchTerm = search.trim().toLowerCase();
+    let filteredProducts = [...rows];
+    
+    // Apply low stock filter if enabled
     if (lowStockOnly) {
-      items = items.filter((p) => {
-        const stock = p.stock ?? 0;
-        const minStock = p.minStock ?? 0;
-        return stock <= minStock;
+      filteredProducts = filteredProducts.filter((product: Producto) => {
+        const stock = product.stock ?? 0;
+        const stockMinimo = product.stockMinimo ?? 0;
+        return stock <= stockMinimo;
       });
     }
+    
+    // Apply supplier filter if specified
     if (filterSupplier) {
-      items = items.filter((p) => (p as any).supplierId === filterSupplier);
+      filteredProducts = filteredProducts.filter(
+        (product: Producto) => product.proveedorId === filterSupplier
+      );
     }
+    
+    // Apply category filter if specified
     if (filterCategory) {
-      items = items.filter((p) => ((p as any).categoria || '') === filterCategory);
+      filteredProducts = filteredProducts.filter(
+        (product: Producto) => 
+          product.categoriaId === filterCategory || 
+          product.categoria === filterCategory
+      );
     }
-    if (!t) return items;
-    return items.filter(
-      (p) =>
-        (p.nombre || '').toLowerCase().includes(t) ||
-        (p.sku || '').toLowerCase().includes(t) ||
-        ((p as any).categoria || '').toLowerCase().includes(t) ||
-        (((p as any).supplierName || '') as string).toLowerCase().includes(t)
-    );
+    
+    // Apply search term filter if specified
+    if (searchTerm) {
+      filteredProducts = filteredProducts.filter((product: Producto) => {
+        const searchFields = [
+          product.nombre || '',
+          product.codigoBarras || '',
+          product.sku || '',
+          product.categoriaId || '',
+          product.categoria || '',
+          product.proveedorId || '',
+          product.proveedor || ''
+        ];
+        
+        return searchFields.some(field => 
+          field.toLowerCase().includes(searchTerm)
+        );
+      });
+    }
+    
+    return filteredProducts;
   }, [rows, search, lowStockOnly, filterSupplier, filterCategory]);
 
   const columns: GridColDef[] = [
@@ -434,28 +484,37 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
             onClick={() => {
               // Exportar CSV de los elementos filtrados
               const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
+              const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
               const lines = [headers.join(',')];
-              filtered.forEach((p) => {
+              
+              filtered.forEach((product: Producto) => {
+                const menudeoPrice = product.precios?.find(p => p.tipo === 'menudeo')?.precio ?? 0;
+                const mayoreoPrice = product.precios?.find(p => p.tipo === 'mayoreo')?.precio ?? 0;
+                
                 const row = [
-                  p.nombre ?? '',
-                  p.sku ?? '',
-                  p.categoria ?? '',
-                  ((p as any).supplierName ?? ''),
-                  String(p.precio ?? ''),
-                  String(p.costo ?? ''),
-                  String(p.stock ?? ''),
-                  String(p.minStock ?? ''),
-                  p.activo ? 'Sí' : 'No',
+                  product.nombre ?? '',
+                  product.codigoBarras ?? '',
+                  product.sku ?? '',
+                  product.categoria ?? product.categoriaId ?? '',
+                  product.proveedor ?? product.proveedorId ?? '',
+                  menudeoPrice.toString(),
+                  mayoreoPrice.toString(),
+                  String(product.stock ?? 0),
+                  String(product.stockMinimo ?? 0),
+                  String(product.stockMaximo ?? 0),
+                  product.activo ? 'Sí' : 'No',
                 ];
-                // Escapar comas con comillas
-                lines.push(row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+                
+                // Escape commas with quotes
+                lines.push(row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
               });
+              
               const csv = lines.join('\n');
               const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = 'inventario.csv';
+              a.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
@@ -469,22 +528,50 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
             variant="outlined"
             startIcon={<SaveIcon />}
             onClick={() => {
-              // Exportar como Excel (XLS) usando tabla HTML (compatible con Excel)
-              const headers = ['Nombre','SKU','Categoría','Proveedor','Precio','Costo','Stock','Stock mínimo','Activo'];
-              const rowsHtml = filtered.map((p) => (
-                `<tr>`+
-                `<td>${(p.nombre??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`+
-                `<td>${(p.sku??'')}</td>`+
-                `<td>${(p.categoria??'')}</td>`+
-                `<td>${(((p as any).supplierName??''))}</td>`+
-                `<td>${p.precio??''}</td>`+
-                `<td>${p.costo??''}</td>`+
-                `<td>${p.stock??''}</td>`+
-                `<td>${p.minStock??''}</td>`+
-                `<td>${p.activo?'Sí':'No'}</td>`+
-                `</tr>`
-              )).join('');
-              const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`;
+              // Export as Excel (XLS) using HTML table (Excel compatible)
+              const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
+              
+              const rowsHtml = filtered.map((product: Producto) => {
+                const menudeoPrice = product.precios?.find(p => p.tipo === 'menudeo')?.precio ?? 0;
+                const mayoreoPrice = product.precios?.find(p => p.tipo === 'mayoreo')?.precio ?? 0;
+                
+                return (
+                  `<tr>` +
+                  `<td>${(product.nombre ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</td>` +
+                  `<td>${product.codigoBarras ?? ''}</td>` +
+                  `<td>${product.sku ?? ''}</td>` +
+                  `<td>${product.categoria ?? product.categoriaId ?? ''}</td>` +
+                  `<td>${product.proveedor ?? product.proveedorId ?? ''}</td>` +
+                  `<td>${menudeoPrice}</td>` +
+                  `<td>${mayoreoPrice}</td>` +
+                  `<td>${product.stock ?? 0}</td>` +
+                  `<td>${product.stockMinimo ?? 0}</td>` +
+                  `<td>${product.stockMaximo ?? 0}</td>` +
+                  `<td>${product.activo ? 'Sí' : 'No'}</td>` +
+                  `</tr>`
+                );
+              }).join('');
+              
+              const html = `
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <meta charset="UTF-8">
+                    <style>
+                      table { border-collapse: collapse; width: 100%; }
+                      th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+                      th { background-color: #f2f2f2; }
+                    </style>
+                  </head>
+                  <body>
+                    <table>
+                      <thead>
+                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                      </thead>
+                      <tbody>${rowsHtml}</tbody>
+                    </table>
+                  </body>
+                </html>`;
               const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -529,14 +616,21 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
 };
 
 
-// Formulario de producto (crear/editar)
-const ProductFormWrapper: React.FC = () => {
+// Product form (create/edit)
+const ProductFormWrapper = () => {
+  const { id } = useParams<{ id: string }>();
+  const isEdit = !!id;
   const navigate = useNavigate();
-  const { id } = useParams();
   const { showMessage } = useSnackbar();
-  const isEdit = Boolean(id);
+  const { currentUser } = useContext(AuthContext);
   const [isLoading, setIsLoading] = useState(false);
   const [initialData, setInitialData] = useState<Partial<Producto>>({});
+  const [open, setOpen] = useState(true);
+  
+  const handleClose = () => {
+    setOpen(false);
+    navigate('/inventario');
+  };
 
   // Load product data if in edit mode
   useEffect(() => {
@@ -547,12 +641,62 @@ const ProductFormWrapper: React.FC = () => {
       try {
         const product = await getProductById(id);
         if (product) {
-          setInitialData({
+          // Map Firestore Product to Producto type
+          const productData: Partial<Producto> = {
             ...product,
-            // Ensure dates are properly parsed
+            codigoBarras: product.codigo || product.codigoBarras,
+            // Handle prices array
+            precios: product.precios || [
+              { cantidadMinima: 1, precio: product.precioMenudeo || 0, tipo: 'menudeo' },
+              { cantidadMinima: product.cantidadMayoreo || 10, precio: product.precioMayoreo || 0, tipo: 'mayoreo' }
+            ],
+            // Convert Firestore timestamps to Date objects
             fechaCreacion: product.fechaCreacion?.toDate ? product.fechaCreacion.toDate() : new Date(),
             fechaActualizacion: product.fechaActualizacion?.toDate ? product.fechaActualizacion.toDate() : new Date(),
-          });
+            // Map images if they exist
+            imagenes: Array.isArray(product.imagenes) 
+              ? product.imagenes.map((img: any, index: number) => ({
+                  id: `img-${index}`,
+                  nombre: `product-${product.id}-${index}`,
+                  tipo: 'image/jpeg',
+                  datos: img,
+                  orden: index,
+                  esPrincipal: index === 0
+                }))
+              : [],
+            // Set default values for required fields
+            stock: product.stock || 0,
+            stockMinimo: product.stockMinimo || 0,
+            stockMaximo: product.stockMaximo || 0,
+            costo: product.costo || 0,
+            costoProduccion: product.costoProduccion || 0,
+            moneda: product.moneda || 'MXN',
+            activo: product.activo !== undefined ? product.activo : true,
+            // Map prices if they exist
+            precios: product.precios || [
+              {
+                cantidadMinima: 1,
+                precio: product.precioMenudeo || 0,
+                tipo: 'menudeo'
+              },
+              {
+                cantidadMinima: product.cantidadMayoreo || 2,
+                precio: product.precioMayoreo || 0,
+                tipo: 'mayoreo'
+              }
+            ],
+            // Map images if they exist
+            imagenes: Array.isArray(product.imagenes) ? product.imagenes.map((img: any, index: number) => ({
+              id: `img-${index}`,
+              nombre: `product-${product.id}-${index}`,
+              tipo: 'image/jpeg',
+              datos: img,
+              orden: index,
+              esPrincipal: index === 0
+            })) : []
+          };
+          
+          setInitialData(productData);
         }
       } catch (error) {
         console.error('Error loading product:', error);
@@ -570,38 +714,60 @@ const ProductFormWrapper: React.FC = () => {
       setIsLoading(true);
       
       // Find retail and wholesale prices
-      const precioMenudeo = data.precios?.find(p => p.tipo === 'menudeo')?.precio || 0;
-      const precioMayoreo = data.precios?.find(p => p.tipo === 'mayoreo')?.precio || 0;
-      const cantidadMayoreo = data.precios?.find(p => p.tipo === 'mayoreo')?.cantidadMinima || 2;
+      const menudeoPrice = data.precios?.find(p => p.tipo === 'menudeo');
+      const mayoreoPrice = data.precios?.find(p => p.tipo === 'mayoreo');
       
-      // Convert Producto to Product for Firestore
-      const productData: Product = {
-        id: data.id || '',
-        codigo: data.codigoBarras || '',
+      // Convert Producto to Firestore document
+      const productData: any = {
+        // Basic info
         nombre: data.nombre || 'Producto sin nombre',
         descripcion: data.descripcion || '',
-        categoria: data.categoriaId || '',
-        proveedor: data.proveedorId || '',
-        precioMenudeo,
-        precioMayoreo,
-        cantidadMayoreo,
-        stock: data.stock || 0,
-        stockMinimo: data.stockMinimo || 0,
+        categoriaId: data.categoriaId || '',
+        proveedorId: data.proveedorId || '',
+        
+        // Pricing
+        precios: data.precios || [],
+        precioMenudeo: menudeoPrice?.precio || 0,
+        precioMayoreo: mayoreoPrice?.precio || 0,
+        cantidadMayoreo: mayoreoPrice?.cantidadMinima || 2,
+        
         fechaActualizacion: new Date(),
-        activo: data.activo !== false,
-        imagenes: data.imagenes?.map(img => img.datos) || []
+        // Ensure required fields
+        stock: formData.stock || 0,
+        stockMinimo: formData.stockMinimo || 0,
+        stockMaximo: formData.stockMaximo || 0,
+        costo: formData.costo || 0,
+        costoProduccion: formData.costoProduccion || 0,
+        moneda: formData.moneda || 'MXN',
+        // Handle images
+        imagenes: formData.imagenes?.map(img => 
+          typeof img === 'string' ? img : img.datos
+        )
       };
-      
+
       if (isEdit && id) {
+        // Update existing product
         await updateProduct(id, productData);
         showMessage('Producto actualizado correctamente', 'success');
       } else {
-        delete productData.id; // Remove ID for new products
-        await createProduct(productData);
-        showMessage('Producto creado exitosamente', 'success');
-        navigate('/inventario');
+        // Create new product
+        await addProduct({
+          ...productData,
+          fechaCreacion: new Date(),
+          creadoPor: currentUser?.uid || '',
+          activo: true,
+          historialPrecios: [{
+            fecha: new Date(),
+            precio: productData.precios?.[0]?.precio || 0,
+            moneda: productData.moneda || 'MXN',
+            motivo: 'Precio inicial'
+          }]
+        });
+        await addProduct(newProduct);
+        showMessage('Producto creado correctamente', 'success');
       }
       
+      onClose();
     } catch (error) {
       console.error('Error saving product:', error);
       showMessage('Error al guardar el producto', 'error');
