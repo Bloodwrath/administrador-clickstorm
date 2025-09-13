@@ -31,7 +31,12 @@ import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 
 // Import types from services
-import { Product, Precio as ServicePrecio, ItemPaquete as ServiceItemPaquete } from '../../services/products';
+import { 
+  Product, 
+  Precio as ServicePrecio, 
+  ItemPaquete as ServiceItemPaquete,
+  type Precio 
+} from '../../services/products';
 
 // Define interfaces
 interface Supplier {
@@ -221,13 +226,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
 
   const validateForm = async (data: Producto) => {
     // Basic validation
-    if (!data.nombre.trim()) {
+    if (!data.nombre || !data.nombre.trim()) {
       enqueueSnackbar('El nombre del producto es requerido', { variant: 'error' });
       return false;
     }
 
     // Validate prices
-    if (data.precios.length === 0) {
+    if (!data.precios || data.precios.length === 0) {
       enqueueSnackbar('Debe agregar al menos un precio', { variant: 'error' });
       return false;
     }

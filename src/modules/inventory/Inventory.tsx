@@ -27,13 +27,14 @@ import ProductForm from './ProductForm';
 // Import services and types
 import { 
   Product, 
-  ItemPaquete, 
   listenProducts, 
   deleteProduct, 
   createProduct, 
   updateProduct, 
-  getProductById 
+  getProductById,
+  type ItemPaquete as ServiceItemPaquete
 } from '../../services/products';
+
 import { 
   Supplier as ApiSupplier, 
   listSuppliers, 
@@ -43,35 +44,21 @@ import {
   deleteSupplier, 
   getSupplierById 
 } from '../../services/suppliers';
+
 import { saveLargeText, getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
+
+// Import types from ProductForm
+import type { Producto } from './ProductForm';
+
+// Alias to avoid naming conflict
+type ItemPaquete = ServiceItemPaquete;
 
 type Supplier = ApiSupplier & {
   // Extend the API supplier type if needed
 };
 
-// Alias para compatibilidad
-type Producto = Product & {
-  // Campos adicionales específicos del frontend
-  sku?: string;
-  categoria?: string;
-  supplierName?: string;
-  minStock?: number; // Alias para stockMinimo
-  hasImage?: boolean;
-  fechaCreacion?: Date | any;
-  fechaActualizacion?: Date | any;
-  createdAt?: Date | any; // Alias para fechaCreacion
-  updatedAt?: Date | any; // Alias para fechaActualizacion
-  creadoPor?: string;
-  historialPrecios?: any[];
-  etiquetas?: string[];
-  // Hacer obligatorios algunos campos opcionales del tipo Product
-  descripcion: string;
-  categoriaId: string;
-  proveedorId: string;
-  material: string;
-  costoProduccion: number;
-};
+// Use Producto type imported from ProductForm
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -85,7 +72,19 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = listenProducts((items) => setRows(items));
+    const unsub = listenProducts((items) => {
+      // Convert Product[] to Producto[] by ensuring required fields have default values
+      const productos: Producto[] = items.map(item => ({
+        ...item,
+        descripcion: item.descripcion || '',
+        categoriaId: item.categoriaId || '',
+        proveedorId: item.proveedorId || '',
+        material: item.material || '',
+        costoProduccion: item.costoProduccion || 0,
+        // Add any other required fields with defaults
+      }));
+      setRows(productos);
+    });
     return () => unsub();
   }, []);
 
@@ -93,7 +92,11 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
     const t = search.trim().toLowerCase();
     let items = rows;
     if (lowStockOnly) {
-      items = items.filter((p) => typeof p.minStock === 'number' && p.stock <= (p.minStock as number));
+      items = items.filter((p) => {
+        const stock = p.stock ?? 0;
+        const minStock = p.minStock ?? 0;
+        return stock <= minStock;
+      });
     }
     if (filterSupplier) {
       items = items.filter((p) => (p as any).supplierId === filterSupplier);
@@ -420,19 +423,62 @@ const ProductFormWrapper: React.FC = () => {
       setIsLoading(true);
       
       if (isEdit && id) {
-        await updateProduct(id, data);
+        // Ensure all required fields are provided when updating
+        const productData: Product = {
+          ...data,
+          nombre: data.nombre || 'Producto sin nombre',
+          descripcion: data.descripcion || '',
+          categoriaId: data.categoriaId || '',
+          proveedorId: data.proveedorId || '',
+          material: data.material || '',
+          precios: data.precios || [],
+          moneda: data.moneda || 'MXN',
+          costo: data.costo || 0,
+          costoProduccion: data.costoProduccion || 0,
+          stock: data.stock || 0,
+          stockMinimo: data.stockMinimo || 0,
+          stockMaximo: data.stockMaximo || 0,
+          tipo: data.tipo || 'venta',
+          imagenes: data.imagenes || [],
+          activo: data.activo ?? true
+        };
+        
+        await updateProduct(id, productData);
         showMessage('Producto actualizado correctamente', 'success');
       } else {
-        await createProduct({
-          ...data,
-          creadoPor: 'currentUserId', // TODO: Replace with actual user ID
-          fechaCreacion: new Date(),
-          activo: true,
-        });
-        showMessage('Producto creado correctamente', 'success');
+        const handleAddProduct = async (data: Producto) => {
+          try {
+            // Ensure all required fields are provided with default values if missing
+            const productData: Product = {
+              nombre: data.nombre || 'Nuevo Producto',
+              descripcion: data.descripcion || '',
+              categoriaId: data.categoriaId || '',
+              proveedorId: data.proveedorId || '',
+              material: data.material || '',
+              precios: data.precios || [],
+              moneda: data.moneda || 'MXN',
+              costo: data.costo || 0,
+              costoProduccion: data.costoProduccion || 0,
+              stock: data.stock || 0,
+              stockMinimo: data.stockMinimo || 0,
+              stockMaximo: data.stockMaximo || 0,
+              tipo: data.tipo || 'venta',
+              imagenes: data.imagenes || [],
+              activo: true,
+              // Add any other required fields with defaults
+            };
+            
+            await createProduct(productData as Product);
+            showMessage('Producto creado exitosamente', 'success');
+            navigate('/inventario');
+          } catch (error) {
+            console.error('Error al crear el producto:', error);
+            showMessage('Error al crear el producto', 'error');
+          }
+        };
+        handleAddProduct(data);
       }
       
-      navigate('/inventory');
     } catch (error) {
       console.error('Error saving product:', error);
       showMessage('Error al guardar el producto', 'error');

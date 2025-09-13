@@ -17,16 +17,16 @@ import { db } from './firebase';
 
 // Tipos
 
-type Precio = {
+export type Precio = {
   cantidadMinima: number;
   precio: number;
   tipo: 'menudeo' | 'mayoreo';
 };
 
-type ItemPaquete = {
+export type ItemPaquete = {
   productoId: string;
   cantidad: number;
-  tipo: string;
+  tipo: 'venta' | 'produccion';
 };
 
 export type Product = {

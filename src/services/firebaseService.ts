@@ -198,8 +198,8 @@ export const productoService = {
         historialPrecios: [
           {
             fecha: serverTimestamp() as Timestamp,
-            precio: producto.precioActual,
-            moneda: producto.moneda,
+            precio: Array.isArray(producto.precios) && producto.precios.length > 0 ? producto.precios[0].precio : 0,
+            moneda: 'MXN',
             motivo: 'Precio inicial',
           },
         ],
@@ -223,7 +223,7 @@ export const productoService = {
       };
 
       // Si se actualiza el precio, agregar al historial
-      if (datosActualizados.precioActual) {
+      if (datosActualizados.precios && Array.isArray(datosActualizados.precios) && datosActualizados.precios.length > 0) {
         const productoActual = await getDoc(docRef);
         if (productoActual.exists()) {
           const data = productoActual.data() as FirebaseProducto;
@@ -231,8 +231,8 @@ export const productoService = {
             ...(data.historialPrecios || []),
             {
               fecha: serverTimestamp() as Timestamp,
-              precio: datosActualizados.precioActual,
-              moneda: datosActualizados.moneda || 'MXN',
+              precio: datosActualizados.precios[0].precio,
+              moneda: datosActualizados.precios[0].tipo === 'mayoreo' ? 'MXN' : 'MXN',
               motivo: 'Actualización de precio',
             },
           ];
