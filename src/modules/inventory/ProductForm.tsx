@@ -44,7 +44,9 @@ export type ItemPaquete = ServiceItemPaquete & {
   tipo: 'venta' | 'produccion';
 };
 
-export type Producto = Partial<Omit<Product, 'itemsPaquete'>> & {
+export type TipoProducto = 'venta' | 'materia_prima' | 'paquete';
+
+export type Producto = Partial<Omit<Product, 'itemsPaquete' | 'precios'>> & {
   // Campos adicionales específicos del frontend
   sku?: string;
   categoria?: string;
@@ -65,6 +67,10 @@ export type Producto = Partial<Omit<Product, 'itemsPaquete'>> & {
   material?: string;
   costoProduccion?: number;
   precio?: number; // Para compatibilidad
+  precioMenudeo: number;
+  precioMayoreo: number;
+  tipo: TipoProducto;
+  cantidadMayoreo?: number; // Cantidad mínima para precio de mayoreo
   itemsPaquete?: ItemPaquete[];
 };
 
@@ -84,43 +90,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     handleSubmit, 
     setValue, 
     watch, 
-    formState: { isSubmitting }
+    formState: { errors }
   } = useForm<Producto>({
     defaultValues: {
-      nombre: '',
-      codigoBarras: '',
-      descripcion: '',
-      categoriaId: '',
-      proveedorId: '',
-      material: '',
-      precios: [{ cantidadMinima: 1, precio: 0, tipo: 'menudeo' }],
-      moneda: 'MXN',
-      costo: 0,
-      costoProduccion: 0,
-      stock: 0,
-      stockMinimo: 0,
-      stockMaximo: 0,
-      tipo: 'venta',
-      itemsPaquete: [],
-      imagenes: [],
-      activo: true,
-      fechaCreacion: new Date(),
-      fechaActualizacion: new Date(),
-      creadoPor: '',
-      historialPrecios: [],
-      etiquetas: [],
       ...initialData,
+      minStock: initialData.minStock ?? initialData.stockMinimo ?? 0,
+      precio: initialData.precio ?? 0,
+      precioMenudeo: initialData.precioMenudeo ?? initialData.precio ?? 0,
+      precioMayoreo: initialData.precioMayoreo ?? initialData.precio ?? 0,
+      cantidadMayoreo: initialData.cantidadMayoreo ?? 5,
+      costo: initialData.costo ?? 0,
+      stock: initialData.stock ?? 0,
+      activo: initialData.activo ?? true,
+      tipo: initialData.tipo ?? 'venta',
+      itemsPaquete: initialData.itemsPaquete || [],
     },
   });
 
+  const tipoProducto = watch('tipo');
+  const precioMenudeo = watch('precioMenudeo');
+  const precioMayoreo = watch('precioMayoreo');
+  const cantidadMayoreo = watch('cantidadMayoreo');
+  const itemsPaquete = watch('itemsPaquete') || [];
+  
   const [suppliers] = useState<Supplier[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Watch form values
-  const productType = watch('tipo');
-  const precios = watch('precios') || [];
-  const itemsPaquete = watch('itemsPaquete') || [];
   
   // Load suppliers on mount
   useEffect(() => {
@@ -162,8 +157,23 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     loadData();
   }, [productId, isEdit, setValue, enqueueSnackbar]);
 
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.precio) setValue('precio', initialData.precio);
+      if (initialData.precioMenudeo) setValue('precioMenudeo', initialData.precioMenudeo);
+      if (initialData.precioMayoreo) setValue('precioMayoreo', initialData.precioMayoreo);
+      if (initialData.cantidadMayoreo) setValue('cantidadMayoreo', initialData.cantidadMayoreo);
+      if (initialData.costo) setValue('costo', initialData.costo);
+      if (initialData.stock) setValue('stock', initialData.stock);
+      if (initialData.minStock !== undefined) setValue('minStock', initialData.minStock);
+      if (initialData.stockMinimo !== undefined) setValue('minStock', initialData.stockMinimo);
+      if (initialData.activo !== undefined) setValue('activo', initialData.activo);
+      if (initialData.tipo) setValue('tipo', initialData.tipo);
+    }
+  }, [initialData, setValue]);
+
   const handleAddPrecio = () => {
-    const newPrecios = [...precios];
+    const newPrecios = [...watch('precios')];
     const nextMinQty = newPrecios.length > 0 
       ? Math.max(...newPrecios.map(p => p.cantidadMinima)) + 1 
       : 1;
@@ -174,11 +184,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
       tipo: 'menudeo'
     };
     
-    setValue('precios', [...precios, newPrecio]);
+    setValue('precios', [...watch('precios'), newPrecio]);
   };
 
   const handleRemovePrecio = (index: number) => {
-    const newPrecios = [...precios];
+    const newPrecios = [...watch('precios')];
     newPrecios.splice(index, 1);
     setValue('precios', newPrecios);
   };
@@ -232,7 +242,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     return true;
   };
 
-  const handleSubmitForm = async (data: Producto) => {
+  const onSubmitForm = async (data: Producto) => {
     try {
       setIsLoading(true);
       
@@ -246,23 +256,23 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
       // Prepare product data
       const productData: Producto = {
         ...data,
-        // Ensure required arrays are initialized
-        precios: data.precios || [],
-        itemsPaquete: data.itemsPaquete || [],
-        imagenes: data.imagenes || [],
-        etiquetas: data.etiquetas || [],
-        historialPrecios: data.historialPrecios || [],
-        // Set timestamps
-        fechaActualizacion: new Date(),
-        // Set default values if creating new product
-        ...(!isEdit && {
-          fechaCreacion: new Date(),
-          activo: true,
-          creadoPor: 'currentUserId', // TODO: Replace with actual user ID
-        }),
+        stockMinimo: data.minStock,
+        precio: data.precioMenudeo, // Keep for backward compatibility
+        precioMenudeo: data.precioMenudeo || 0,
+        precioMayoreo: data.precioMayoreo || 0,
+        cantidadMayoreo: data.cantidadMayoreo || 5,
+        costo: data.costo || 0,
+        stock: data.stock || 0,
+        activo: data.activo ?? true,
+        tipo: data.tipo || 'venta',
       };
 
-      // Call the parent onSubmit handler
+      // If it's a package, ensure it has items
+      if (productData.tipo === 'paquete' && (!productData.itemsPaquete || productData.itemsPaquete.length === 0)) {
+        enqueueSnackbar('Un paquete debe contener al menos un producto', { variant: 'error' });
+        return;
+      }
+
       await onSubmit(productData);
       
       // Navigate back to inventory list
@@ -276,215 +286,115 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit(handleSubmitForm)} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
-        <TextField label="Nombre" required {...register('nombre')} />
-        <TextField label="Código de barras" {...register('codigoBarras')} />
-        
-        <FormControl>
-          <InputLabel id="tipo-producto-label">Tipo de Producto</InputLabel>
-          <Select
-            labelId="tipo-producto-label"
-            label="Tipo de Producto"
-            {...register('tipo')}
-          >
-            <MenuItem value="venta">Producto para Venta</MenuItem>
-            <MenuItem value="produccion">Materia Prima/Insumo</MenuItem>
-            <MenuItem value="paquete">Paquete/Promoción</MenuItem>
-          </Select>
-        </FormControl>
-        
-        <TextField label="Categoría" {...register('categoriaId')} />
-        
-        <FormControl>
-          <InputLabel id="proveedor-label">Proveedor</InputLabel>
-          <Select
-            labelId="proveedor-label"
-            label="Proveedor"
-            {...register('proveedorId')}
-          >
-            <MenuItem value="">
-              <em>Sin proveedor</em>
-            </MenuItem>
-            {suppliers.map((supplier) => (
-              <MenuItem key={supplier.id} value={supplier.id}>
-                {supplier.nombre}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        
-        <TextField label="Material" {...register('material')} />
-        
-        {/* Sección de precios */}
-        <Box sx={{ gridColumn: { md: '1 / span 2' }, border: '1px solid #ddd', p: 2, borderRadius: 1 }}>
-          <Typography variant="subtitle1" gutterBottom>Precios</Typography>
-          {precios.map((precio, index) => (
-            <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-              <TextField
-                label="Cantidad mínima"
-                type="number"
-                value={precio.cantidadMinima}
-                onChange={(e) => {
-                  const newPrecios = [...precios];
-                  newPrecios[index].cantidadMinima = parseInt(e.target.value) || 0;
-                  setValue('precios', newPrecios);
-                }}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                label="Precio"
-                type="number"
-                inputProps={{ step: '0.01' }}
-                value={precio.precio}
-                onChange={(e) => {
-                  const newPrecios = [...precios];
-                  newPrecios[index].precio = parseFloat(e.target.value) || 0;
-                  setValue('precios', newPrecios);
-                }}
-                sx={{ flex: 1 }}
-              />
-              <FormControl sx={{ minWidth: 120 }}>
-                <InputLabel>Tipo</InputLabel>
-                <Select
-                  value={precio.tipo}
-                  label="Tipo"
-                  onChange={(e) => {
-                    const newPrecios = [...precios];
-                    newPrecios[index].tipo = e.target.value as 'mayoreo' | 'menudeo';
-                    setValue('precios', newPrecios);
-                  }}
-                >
-                  <MenuItem value="menudeo">Menudeo</MenuItem>
-                  <MenuItem value="mayoreo">Mayoreo</MenuItem>
-                </Select>
-              </FormControl>
-              <IconButton
-                color="error"
-                onClick={() => handleRemovePrecio(index)}
-                disabled={precios.length <= 1}
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Box>
-          ))}
-          <Button
+    <Box component="form" onSubmit={handleSubmit(onSubmitForm)} sx={{ mt: 2 }}>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={6}>
+          <TextField
+            fullWidth
+            label="Nombre del producto"
             variant="outlined"
-            onClick={handleAddPrecio}
-            startIcon={<AddIcon />}
-          >
-            Agregar Precio
-          </Button>
-        </Box>
+            margin="normal"
+            {...register('nombre', { required: 'El nombre es requerido' })}
+            error={!!errors.nombre}
+            helperText={errors.nombre?.message}
+          />
+        </Grid>
         
-        <TextField 
-          label="Costo" 
-          type="number" 
-          inputProps={{ step: '0.01' }} 
-          {...register('costo', { valueAsNumber: true })} 
-        />
-        
-        <TextField 
-          label="Costo de Producción" 
-          type="number" 
-          inputProps={{ step: '0.01' }} 
-          {...register('costoProduccion', { valueAsNumber: true })} 
-        />
-        
-        <TextField 
-          label="Stock" 
-          type="number" 
-          {...register('stock', { valueAsNumber: true })} 
-        />
-        
-        <TextField 
-          label="Stock mínimo" 
-          type="number" 
-          {...register('stockMinimo', { valueAsNumber: true })} 
-        />
-        
-        <TextField 
-          label="Stock máximo" 
-          type="number" 
-          {...register('stockMaximo', { valueAsNumber: true })} 
-        />
-        
-        <TextField 
-          label="Descripción" 
-          multiline 
-          minRows={3} 
-          sx={{ gridColumn: { md: '1 / span 2' } }} 
-          {...register('descripcion')} 
-        />
-        
-        {/* Sección de items del paquete (solo para tipo paquete) */}
-        {productType === 'paquete' && (
-          <Box sx={{ gridColumn: { md: '1 / span 2' }, border: '1px solid #ddd', p: 2, borderRadius: 1, mt: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>Productos en el Paquete</Typography>
-            {itemsPaquete.map((item, index) => (
-              <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                <FormControl sx={{ flex: 2 }}>
-                  <InputLabel>Producto</InputLabel>
-                  <Select
-                    value={item.productoId}
-                    label="Producto"
-                    onChange={(e) => {
-                      const newItems = [...itemsPaquete];
-                      newItems[index].productoId = e.target.value;
-                      setValue('itemsPaquete', newItems);
-                    }}
-                  >
-                    {/* TODO: Cargar lista de productos disponibles */}
-                    <MenuItem value="">Seleccionar producto</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                <TextField
-                  label="Cantidad"
-                  type="number"
-                  value={item.cantidad}
-                  onChange={(e) => {
-                    const newItems = [...itemsPaquete];
-                    newItems[index].cantidad = parseInt(e.target.value) || 0;
-                    setValue('itemsPaquete', newItems);
-                  }}
-                  sx={{ flex: 1 }}
-                />
-                
-                <FormControl sx={{ minWidth: 140 }}>
-                  <InputLabel>Tipo</InputLabel>
-                  <Select
-                    value={item.tipo}
-                    label="Tipo"
-                    onChange={(e) => {
-                      const newItems = [...itemsPaquete];
-                      newItems[index].tipo = e.target.value as 'venta' | 'produccion';
-                      setValue('itemsPaquete', newItems);
-                    }}
-                  >
-                    <MenuItem value="venta">Para Venta</MenuItem>
-                    <MenuItem value="produccion">Para Producción</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                <IconButton
-                  color="error"
-                  onClick={() => handleRemoveItemPaquete(index)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            ))}
-            
-            <Button
-              variant="outlined"
-              onClick={handleAddItemPaquete}
-              startIcon={<AddIcon />}
+        <Grid item xs={12} md={6}>
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="tipo-producto-label">Tipo de Producto</InputLabel>
+            <Select
+              labelId="tipo-producto-label"
+              id="tipo"
+              label="Tipo de Producto"
+              {...register('tipo', { required: 'El tipo de producto es requerido' })}
+              error={!!errors.tipo}
             >
-              Agregar Producto al Paquete
-            </Button>
-          </Box>
-        )}
+              <MenuItem value="venta">Producto de Venta</MenuItem>
+              <MenuItem value="materia_prima">Materia Prima</MenuItem>
+              <MenuItem value="paquete">Paquete</MenuItem>
+            </Select>
+            {errors.tipo && (
+              <Typography color="error" variant="caption">
+                {errors.tipo.message}
+              </Typography>
+            )}
+          </FormControl>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Precio de Menudeo"
+            type="number"
+            variant="outlined"
+            margin="normal"
+            InputProps={{
+              startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              inputProps: { min: 0, step: '0.01' },
+            }}
+            {...register('precioMenudeo', { 
+              required: 'El precio de menudeo es requerido',
+              min: { value: 0, message: 'El precio debe ser mayor o igual a 0' },
+              validate: (value) => {
+                if (tipoProducto === 'paquete') return true;
+                const precioMayoreo = watch('precioMayoreo');
+                return !precioMayoreo || Number(value) >= Number(precioMayoreo) || 
+                  'El precio de menudeo debe ser mayor o igual al precio de mayoreo';
+              }
+            })}
+            error={!!errors.precioMenudeo}
+            helperText={errors.precioMenudeo?.message}
+            disabled={tipoProducto === 'paquete'}
+          />
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Precio de Mayoreo"
+            type="number"
+            variant="outlined"
+            margin="normal"
+            InputProps={{
+              startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              inputProps: { min: 0, step: '0.01' },
+            }}
+            {...register('precioMayoreo', { 
+              required: 'El precio de mayoreo es requerido',
+              min: { value: 0, message: 'El precio debe ser mayor o igual a 0' },
+              validate: (value) => {
+                if (tipoProducto === 'paquete') return true;
+                const precioMenudeo = watch('precioMenudeo');
+                return !precioMenudeo || Number(value) <= Number(precioMenudeo) || 
+                  'El precio de mayoreo debe ser menor o igual al precio de menudeo';
+              }
+            })}
+            error={!!errors.precioMayoreo}
+            helperText={errors.precioMayoreo?.message}
+            disabled={tipoProducto === 'paquete'}
+          />
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Cantidad para Mayoreo"
+            type="number"
+            variant="outlined"
+            margin="normal"
+            InputProps={{
+              inputProps: { min: 1, step: 1 },
+            }}
+            {...register('cantidadMayoreo', { 
+              required: 'La cantidad para mayoreo es requerida',
+              min: { value: 1, message: 'La cantidad debe ser al menos 1' }
+            })}
+            error={!!errors.cantidadMayoreo}
+            helperText={errors.cantidadMayoreo?.message}
+            disabled={tipoProducto === 'paquete'}
+          />
+        </Grid>
         
         {/* Sección de imágenes */}
         <Box sx={{ gridColumn: { md: '1 / span 2' } }}>

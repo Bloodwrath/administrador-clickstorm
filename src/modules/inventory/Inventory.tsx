@@ -117,93 +117,168 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       sortable: false,
       renderCell: (params: GridRenderCellParams<Producto>) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="small"
-            variant="text"
-            disabled={!params.row.hasImage}
-            onClick={async () => {
-              try {
-                const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
-                if (!bytes) { showMessage('Sin imagen', 'info'); return; }
-                const blob = new Blob([bytes], { type: 'image/*' });
-                const url = URL.createObjectURL(blob);
-                setPreviewSrc(url);
-                setPreviewOpen(true);
-              } catch (e) {
-                console.error(e);
-                showMessage('No se pudo cargar la imagen', 'error');
-              }
-            }}
-          >
-            Ver
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            disabled={!params.row.hasImage}
-            onClick={async () => {
-              try {
-                const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
-                if (!bytes) { showMessage('Sin imagen', 'info'); return; }
-                const blob = new Blob([bytes], { type: 'image/*' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${params.row.nombre || 'producto'}.jpg`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              } catch (e) {
-                console.error(e);
-                showMessage('No se pudo descargar la imagen', 'error');
-              }
-            }}
-          >
-            Descargar
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              variant="text"
+              disabled={!params.row.hasImage}
+              onClick={async () => {
+                try {
+                  const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
+                  if (!bytes) { showMessage('Sin imagen', 'info'); return; }
+                  const blob = new Blob([bytes], { type: 'image/*' });
+                  const url = URL.createObjectURL(blob);
+                  setPreviewSrc(url);
+                  setPreviewOpen(true);
+                } catch (e) {
+                  console.error(e);
+                  showMessage('No se pudo cargar la imagen', 'error');
+                }
+              }}
+            >
+              Ver
+            </Button>
+            <Button
+              size="small"
+              variant="text"
+              disabled={!params.row.hasImage}
+              onClick={async () => {
+                try {
+                  const bytes = (await getLargeText('productos_files', params.row.id!, true)) as Uint8Array | null;
+                  if (!bytes) { showMessage('Sin imagen', 'info'); return; }
+                  const blob = new Blob([bytes], { type: 'image/*' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${params.row.nombre || 'producto'}.jpg`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  console.error(e);
+                  showMessage('No se pudo descargar la imagen', 'error');
+                }
+              }}
+            >
+              Descargar
+            </Button>
+          </Box>
         </Box>
       ),
     },
-    { field: 'supplierName', headerName: 'Proveedor', width: 180 },
     { 
       field: 'nombre', 
       headerName: 'Nombre', 
-      flex: 1, 
-      minWidth: 160,
+      flex: 2, 
+      minWidth: 200,
       renderCell: (params: GridRenderCellParams<Producto>) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {params.row.hasImage && <ImageIcon fontSize="small" color="action" titleAccess="Con imagen" />}
-          <span>{params.row.nombre}</span>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {params.row.hasImage && <ImageIcon fontSize="small" color="action" titleAccess="Con imagen" />}
+            <span>{params.row.nombre}</span>
+          </Box>
+          <Typography variant="caption" color="textSecondary">
+            {params.row.sku}
+          </Typography>
         </Box>
       )
     },
-    { field: 'sku', headerName: 'SKU', width: 130 },
-    { field: 'categoria', headerName: 'Categoría', width: 160 },
-    { field: 'precio', headerName: 'Precio', width: 120, valueFormatter: (v) => `$${v.value ?? 0}` },
-    { field: 'costo', headerName: 'Costo', width: 120, valueFormatter: (v) => `$${v.value ?? 0}` },
-    { field: 'stock', headerName: 'Stock', width: 110 },
-    { field: 'minStock', headerName: 'Stock mínimo', width: 130 },
+    { 
+      field: 'supplierName', 
+      headerName: 'Proveedor', 
+      flex: 1,
+      minWidth: 150,
+      valueFormatter: (params) => params.value || 'N/A'
+    },
+    { 
+      field: 'categoria', 
+      headerName: 'Categoría', 
+      flex: 1,
+      minWidth: 120,
+      valueFormatter: (params) => params.value || 'N/A'
+    },
+    { 
+      field: 'precioMenudeo', 
+      headerName: 'P. Menudeo', 
+      width: 120, 
+      valueFormatter: (v) => `$${(v.value || 0).toFixed(2)}`,
+      headerAlign: 'right',
+      align: 'right'
+    },
+    { 
+      field: 'precioMayoreo', 
+      headerName: 'P. Mayoreo', 
+      width: 120, 
+      valueFormatter: (v) => `$${(v.value || 0).toFixed(2)}`,
+      headerAlign: 'right',
+      align: 'right'
+    },
+    { 
+      field: 'costo', 
+      headerName: 'Costo', 
+      width: 110, 
+      valueFormatter: (v) => `$${(v.value || 0).toFixed(2)}`,
+      headerAlign: 'right',
+      align: 'right'
+    },
+    { 
+      field: 'stock', 
+      headerName: 'Stock', 
+      width: 100,
+      headerAlign: 'right',
+      align: 'right'
+    },
+    { 
+      field: 'minStock', 
+      headerName: 'Stock Mín', 
+      width: 100,
+      headerAlign: 'right',
+      align: 'right'
+    },
     {
       field: 'activo',
       headerName: 'Activo',
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => (params.row.activo ? 'Sí' : 'No'),
+      width: 80,
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <Box
+          sx={{
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            bgcolor: params.row.activo ? 'success.main' : 'error.main',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: 12,
+            fontWeight: 'bold'
+          }}
+          title={params.row.activo ? 'Activo' : 'Inactivo'}
+        >
+          {params.row.activo ? 'S' : 'N'}
+        </Box>
+      ),
     },
     {
       field: 'acciones',
       headerName: 'Acciones',
-      width: 200,
+      width: 180,
       sortable: false,
       renderCell: (params: GridRenderCellParams<Producto>) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button size="small" variant="outlined" onClick={() => navigate(`/inventory/edit/${params.row.id}`)}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap' }}>
+          <Button 
+            size="small" 
+            variant="outlined" 
+            onClick={() => navigate(`/inventory/edit/${params.row.id}`)}
+            sx={{ minWidth: 80 }}
+          >
             Editar
           </Button>
           <Button
             size="small"
             color="error"
-            variant="outlined"
             onClick={async () => {
               if (!params.row.id) return;
               if (!window.confirm('¿Eliminar este producto?')) return;
@@ -215,6 +290,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
                 showMessage('No se pudo eliminar', 'error');
               }
             }}
+            sx={{ minWidth: 90 }}
           >
             Eliminar
           </Button>
@@ -224,7 +300,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   ];
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">Productos</Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -233,6 +309,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
             placeholder="Buscar por nombre, SKU o categoría"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            sx={{ minWidth: 250 }}
           />
           {/* Filtro por Proveedor */}
           <FormControl size="small" sx={{ minWidth: 200 }}>
