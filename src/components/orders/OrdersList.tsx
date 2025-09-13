@@ -24,11 +24,12 @@ import {
   Button,
   useTheme,
   alpha,
-  CircularProgress
+  CircularProgress,
+  Grid
 } from '@mui/material';
 import { 
   Search as SearchIcon, 
-  FilterList as FilterIcon, 
+  FilterList as FilterListIcon, 
   Add as AddIcon,
   Refresh as RefreshIcon,
   PictureAsPdf as PdfIcon,
@@ -36,11 +37,11 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
-import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
-import { Order, OrderStatus, formatCurrency } from '../../../types/order';
+import { collection, getDocs, query, where, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { Order, OrderStatus, formatCurrency } from '../../types/order';
 
-type OrderBy = 'createdAt' | 'total' | 'customerName' | 'status';
+type SortField = 'createdAt' | 'total' | 'customerName' | 'status';
 type OrderDirection = 'asc' | 'desc';
 
 interface OrdersListProps {
@@ -76,9 +77,10 @@ const OrdersList: React.FC<OrdersListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(limit);
-  const [orderBy, setOrderBy] = useState<OrderBy>('createdAt');
+  const [orderBy, setOrderBy] = useState<SortField>('createdAt');
   const [orderDirection, setOrderDirection] = useState<OrderDirection>('desc');
   const [statusFilterState, setStatusFilterState] = useState<OrderStatus | 'all'>(statusFilter);
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'wholesale' | 'retail'>('all');
   const [dateRange, setDateRange] = useState<{
     start: Date | null;
     end: Date | null;
@@ -110,22 +112,30 @@ const OrdersList: React.FC<OrdersListProps> = ({
       
       // Apply search term
       if (searchTerm) {
-        // This is a simplified search - in a real app, you might want to use a more robust search solution
-        // like Algolia or Elasticsearch for better performance
         q = query(q, where('customerName', '>=', searchTerm));
         q = query(q, where('customerName', '<=', searchTerm + '\uf8ff'));
       }
       
       // Apply sorting
-      q = query(q, orderBy(orderBy, orderDirection));
+      const sortField = orderBy === 'customerName' ? 'customerNameLower' : orderBy;
+      q = query(q, firestoreOrderBy(sortField, orderDirection));
       
       const querySnapshot = await getDocs(q);
-      const ordersData = querySnapshot.docs.map(doc => ({
+      let ordersData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate()
-      } as Order));
+        updatedAt: doc.data().updatedAt?.toDate(),
+        // Add a flag to indicate if this is a wholesale order
+        isWholesale: doc.data().items?.some((item: any) => item.isWholesale) || false
+      } as Order & { isWholesale: boolean }));
+      
+      // Apply client-side filtering for order type (wholesale/retail)
+      if (orderTypeFilter !== 'all') {
+        ordersData = ordersData.filter(order => 
+          orderTypeFilter === 'wholesale' ? order.isWholesale : !order.isWholesale
+        );
+      }
       
       setOrders(ordersData);
     } catch (error) {
@@ -142,7 +152,7 @@ const OrdersList: React.FC<OrdersListProps> = ({
   }, [fetchOrders]);
   
   // Handle sort
-  const handleRequestSort = (property: OrderBy) => {
+  const handleRequestSort = (property: SortField) => {
     const isAsc = orderBy === property && orderDirection === 'asc';
     setOrderDirection(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
@@ -172,6 +182,12 @@ const OrdersList: React.FC<OrdersListProps> = ({
     setStatusFilterState(event.target.value);
     setPage(0);
   };
+
+  // Handle order type filter change
+  const handleOrderTypeFilterChange = (event: any) => {
+    setOrderTypeFilter(event.target.value);
+    setPage(0);
+  };
   
   // Handle date range change
   const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,34 +195,34 @@ const OrdersList: React.FC<OrdersListProps> = ({
       ...prev,
       start: event.target.value ? new Date(event.target.value) : null
     }));
-    setPage(0);
   };
-  
+
   const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setDateRange(prev => ({
       ...prev,
       end: event.target.value ? new Date(event.target.value) : null
     }));
-    setPage(0);
   };
   
   // Reset filters
   const resetFilters = () => {
     setSearchTerm('');
     setStatusFilterState('all');
+    setOrderTypeFilter('all');
     setDateRange({ start: null, end: null });
     setPage(0);
   };
   
   // Format date for display
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | Timestamp): string => {
+    const jsDate = date instanceof Timestamp ? date.toDate() : date;
     return new Intl.DateTimeFormat('es-MX', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    }).format(jsDate);
   };
   
   // Pagination
@@ -262,261 +278,204 @@ const OrdersList: React.FC<OrdersListProps> = ({
               }}
             />
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth variant="outlined" size="small">
-              <InputLabel>Estado</InputLabel>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth>
+              <InputLabel id="status-filter-label">Estado</InputLabel>
               <Select
+                labelId="status-filter-label"
+                id="status-filter"
                 value={statusFilterState}
-                onChange={handleStatusFilterChange}
                 label="Estado"
+                onChange={handleStatusFilterChange}
               >
                 <MenuItem value="all">Todos</MenuItem>
                 <MenuItem value="pending">Pendiente</MenuItem>
-                <MenuItem value="processing">En Proceso</MenuItem>
-                <MenuItem value="shipped">Enviado</MenuItem>
+                <MenuItem value="processing">En proceso</MenuItem>
                 <MenuItem value="completed">Completado</MenuItem>
+                <MenuItem value="shipped">Enviado</MenuItem>
                 <MenuItem value="cancelled">Cancelado</MenuItem>
-                <MenuItem value="refunded">Reembolsado</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Desde"
-              variant="outlined"
-              size="small"
-              InputLabelProps={{ shrink: true }}
-              value={dateRange.start ? dateRange.start.toISOString().split('T')[0] : ''}
-              onChange={handleStartDateChange}
-            />
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth>
+              <InputLabel id="type-filter-label">Tipo</InputLabel>
+              <Select
+                labelId="type-filter-label"
+                id="type-filter"
+                value={orderTypeFilter}
+                label="Tipo"
+                onChange={handleOrderTypeFilterChange}
+              >
+                <MenuItem value="all">Todos</MenuItem>
+                <MenuItem value="wholesale">Mayoreo</MenuItem>
+                <MenuItem value="retail">Menudeo</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
-          
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Hasta"
-              variant="outlined"
-              size="small"
-              InputLabelProps={{ shrink: true }}
-              value={dateRange.end ? dateRange.end.toISOString().split('T')[0] : ''}
-              onChange={handleEndDateChange}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} md={2}>
             <Button
               fullWidth
               variant="outlined"
-              startIcon={<RefreshIcon />}
               onClick={resetFilters}
+              startIcon={<RefreshIcon />}
             >
-              Limpiar Filtros
+              Limpiar
             </Button>
           </Grid>
         </Grid>
       </Paper>
-      
-      {/* Orders Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer sx={{ maxHeight: 'calc(100vh - 300px)' }}>
-          <Table stickyHeader aria-label="orders table" size="small">
-            <TableHead>
+
+    {/* Orders Table */}
+    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+      <TableContainer sx={{ maxHeight: 'calc(100vh - 300px)' }}>
+        <Table stickyHeader aria-label="orders table" size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell># Orden</TableCell>
+              <TableCell>Cliente</TableCell>
+              <TableCell>Fecha</TableCell>
+              <TableCell>Productos</TableCell>
+              <TableCell align="right">Total</TableCell>
+              <TableCell>Estado</TableCell>
+              <TableCell>Tipo</TableCell>
+              {showActions && <TableCell>Acciones</TableCell>}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {paginatedOrders.length === 0 ? (
               <TableRow>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'orderNumber'}
-                    direction={orderBy === 'orderNumber' ? orderDirection : 'desc'}
-                    onClick={() => handleRequestSort('orderNumber')}
-                  >
-                    Número
-                  </TableSortLabel>
+                <TableCell colSpan={showActions ? 8 : 7} align="center" sx={{ py: 4 }}>
+                  <Box display="flex" flexDirection="column" alignItems="center">
+                    <FilterListIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography color="text.secondary">
+                      No se encontraron pedidos
+                    </Typography>
+                    <Button
+                      variant="text"
+                      color="primary"
+                      onClick={resetFilters}
+                      sx={{ mt: 1 }}
+                    >
+                      Limpiar filtros
+                    </Button>
+                  </Box>
                 </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'customerName'}
-                    direction={orderBy === 'customerName' ? orderDirection : 'asc'}
-                    onClick={() => handleRequestSort('customerName')}
-                  >
-                    Cliente
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="right">
-                  <TableSortLabel
-                    active={orderBy === 'total'}
-                    direction={orderBy === 'total' ? orderDirection : 'desc'}
-                    onClick={() => handleRequestSort('total')}
-                  >
-                    Total
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'status'}
-                    direction={orderBy === 'status' ? orderDirection : 'asc'}
-                    onClick={() => handleRequestSort('status')}
-                  >
-                    Estado
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={orderBy === 'createdAt'}
-                    direction={orderBy === 'createdAt' ? orderDirection : 'desc'}
-                    onClick={() => handleRequestSort('createdAt')}
-                  >
-                    Fecha
-                  </TableSortLabel>
-                </TableCell>
-                {showActions && <TableCell align="right">Acciones</TableCell>}
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {paginatedOrders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={showActions ? 6 : 5} align="center" sx={{ py: 4 }}>
-                    <Box display="flex" flexDirection="column" alignItems="center">
-                      <FilterListIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                      <Typography color="text.secondary">
-                        No se encontraron pedidos
+            ) : (
+              paginatedOrders.map((order) => (
+                <TableRow
+                  hover
+                  key={order.id}
+                  onClick={() => handleRowClick(order.id!)}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                    },
+                    '&.Mui-selected': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                    },
+                    '&.Mui-selected:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.12)
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="medium">
+                      #{order.orderNumber}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="subtitle2">{order.customerName}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {order.customerEmail || order.customerPhone}
                       </Typography>
-                      <Button 
-                        variant="text" 
-                        color="primary"
-                        onClick={resetFilters}
-                        sx={{ mt: 1 }}
-                      >
-                        Limpiar filtros
-                      </Button>
                     </Box>
                   </TableCell>
-                </TableRow>
-              ) : (
-                paginatedOrders.map((order) => (
-                  <TableRow 
-                    hover 
-                    key={order.id}
-                    onClick={() => handleRowClick(order.id!)}
-                    sx={{
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                      },
-                      '&.Mui-selected': {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.08)
-                      },
-                      '&.Mui-selected:hover': {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.12)
-                      }
-                    }}
-                  >
+                  <TableCell>
+                    <Typography variant="body2">
+                      {formatDate(order.createdAt)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {order.items.length} {order.items.length === 1 ? 'producto' : 'productos'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" fontWeight="medium">
+                      {formatCurrency(order.total)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      color={statusColors[order.status] as any}
+                      size="small"
+                      variant="outlined"
+                      sx={{
+                        textTransform: 'capitalize',
+                        minWidth: 100,
+                        fontWeight: 500
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={order.isWholesale ? 'Mayoreo' : 'Menudeo'}
+                      color={order.isWholesale ? 'primary' : 'default'}
+                      size="small"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  {showActions && (
                     <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        #{order.orderNumber}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="subtitle2">{order.customerName}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {order.customerEmail || order.customerPhone}
-                        </Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Ver detalles">
+                          <IconButton size="small" onClick={() => handleRowClick(order.id!)}>
+                            <ViewIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Editar">
+                          <IconButton size="small" onClick={() => navigate(`/orders/${order.id}/edit`)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar">
+                          <IconButton size="small" color="error">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
                     </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" fontWeight="medium">
-                        {formatCurrency(order.total)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {order.items.length} {order.items.length === 1 ? 'producto' : 'productos'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                        color={statusColors[order.status] as any}
-                        size="small"
-                        variant="outlined"
-                        sx={{ 
-                          textTransform: 'capitalize',
-                          minWidth: 100,
-                          fontWeight: 500
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDate(order.createdAt)}
-                      </Typography>
-                    </TableCell>
-                    {showActions && (
-                      <TableCell align="right">
-                        <Box display="flex" justifyContent="flex-end">
-                          <Tooltip title="Ver detalles">
-                            <IconButton 
-                              size="small" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRowClick(order.id!);
-                              }}
-                            >
-                              <ViewIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Editar">
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/orders/${order.id}/edit`);
-                              }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Descargar PDF">
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Handle PDF download
-                              }}
-                            >
-                              <PdfIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        {/* Pagination */}
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          component="div"
-          count={orders.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Filas por página:"
-          labelDisplayedRows={({ from, to, count }) => 
-            `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
-          }
-        />
-      </Paper>
+                  )}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
       
-      {/* Summary Stats */}
-      <Grid container spacing={2} sx={{ mt: 2 }}>
+      {/* Pagination */}
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        component="div"
+        count={orders.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        labelRowsPerPage="Filas por página:"
+        labelDisplayedRows={({ from, to, count }) => 
+          `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+        }
+      />
+    </Paper>
+    
+    {/* Summary Stats */}
+    <Grid container spacing={2} sx={{ mt: 2 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h6" color="text.secondary">

@@ -29,13 +29,13 @@ import {
   Notes as NotesIcon
 } from '@mui/icons-material';
 import { collection, addDoc, Timestamp, writeBatch, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
-import { Order, OrderItem, initialOrderState, generateOrderNumber } from '../../../types/order';
-import { Product } from '../../../types/product';
+import { db } from '../../services/firebase';
+import { Order, OrderItem, initialOrderState, generateOrderNumber } from '../../types/order';
+import { Product } from '../../types/product';
 import ProductSearch from './ProductSearch';
 import OrderItemsList from './OrderItemsList';
 import OrderSummary from './OrderSummary';
-import { generateOrderPdf } from '../../../utils/pdfGenerator';
+import { generateOrderPdf } from '../../utils/pdfGenerator';
 
 export interface NewOrderFormProps {
   initialOrder?: Partial<Order>;
@@ -211,10 +211,14 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({
     updateOrder({ items: newItems });
   }, [order.items, updateOrder]);
 
-  // Handle form submission
+  // Handle form submission from form element
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    await submitOrder();
+  };
+  
+  // Handle order submission (can be called directly or from form)
+  const submitOrder = async () => {
     // Validate required fields
     if (!order.customerName || !order.customerPhone) {
       setSnackbar({
@@ -497,7 +501,7 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({
             <OrderSummary
               order={order}
               onUpdateOrder={updateOrder}
-              onSubmit={handleSubmit}
+              onSubmit={submitOrder}
               submitLabel={submitLabel}
               submitDisabled={loading || !order.items?.length}
               showSubmitButton={true}

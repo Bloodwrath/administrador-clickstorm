@@ -40,8 +40,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { db } from '../../../services/firebase';
-import { formatCurrency } from '../../../types/order';
+import { db } from '../../services/firebase';
+import { formatCurrency } from '../../types/order';
 
 type ChartType = 'bar' | 'line' | 'pie' | 'table';
 type GroupByOption = 'day' | 'week' | 'month' | 'year' | 'category' | 'product';
@@ -479,13 +479,12 @@ const SalesReports: React.FC = () => {
                 label="Fecha de Inicio"
                 value={dateRange.start}
                 onChange={handleStartDateChange}
-                renderInput={(params) => (
-                  <TextField 
-                    {...params} 
-                    fullWidth 
-                    size="small"
-                  />
-                )}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: 'small'
+                  }
+                }}
               />
             </LocalizationProvider>
           </Grid>
@@ -496,13 +495,12 @@ const SalesReports: React.FC = () => {
                 label="Fecha de Fin"
                 value={dateRange.end}
                 onChange={handleEndDateChange}
-                renderInput={(params) => (
-                  <TextField 
-                    {...params} 
-                    fullWidth 
-                    size="small"
-                  />
-                )}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: 'small'
+                  }
+                }}
               />
             </LocalizationProvider>
           </Grid>

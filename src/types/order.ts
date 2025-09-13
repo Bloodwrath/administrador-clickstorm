@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'shipped' | 'cancelled' | 'refunded';
 
@@ -14,6 +15,7 @@ export interface OrderItem {
   total: number;
   stock: number;
   isWholesale: boolean;
+  category?: string;
 }
 
 export interface Order {
@@ -38,6 +40,7 @@ export interface Order {
   updatedAt: Date | Timestamp;
   createdBy?: string;
   updatedBy?: string;
+  isWholesale?: boolean;
 }
 
 export interface OrderFormData extends Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt'> {}

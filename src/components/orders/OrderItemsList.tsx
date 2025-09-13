@@ -17,7 +17,8 @@ import {
   useTheme,
   TablePaginationProps,
   Divider,
-  Tooltip
+  Tooltip,
+  Chip
 } from '@mui/material';
 import {
   Add as AddIcon,

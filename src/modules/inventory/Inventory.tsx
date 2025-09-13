@@ -46,14 +46,8 @@ import {
 import { getLargeText } from '../../services/textStorage';
 import { useSnackbar } from '../../context/SnackbarContext';
 
-// Import types from ProductForm
-import type { Producto } from './ProductForm';
-
-type Supplier = ApiSupplier & {
-  // Extend the API supplier type if needed
-};
-
-// Use Producto type imported from ProductForm
+import { Producto, ImagenProducto, PrecioCantidad } from '../../types/inventory';
+import type { Product } from '../../types/product';
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -68,16 +62,97 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
 
   useEffect(() => {
     const unsub = listenProducts((items) => {
-      // Convert Product[] to Producto[] by ensuring required fields have default values
-      const productos: Producto[] = items.map(item => ({
-        ...item,
-        descripcion: item.descripcion || '',
-        categoriaId: item.categoriaId || '',
-        proveedorId: item.proveedorId || '',
-        material: item.material || '',
-        costoProduccion: item.costoProduccion || 0,
-        // Add any other required fields with defaults
-      }));
+      // Convert Product[] to Producto[] by mapping fields between types
+      const productos: Producto[] = items.map(item => {
+        // If it's already a Producto, just use it directly
+        if ('codigoBarras' in item) {
+          return item as unknown as Producto;
+        }
+        
+        // Otherwise, map from Product to Producto
+        const product = item as any; // Using any to avoid TypeScript errors for now
+        const now = new Date();
+        
+        // Helper function to safely get a date from Firestore timestamp or Date
+        const getSafeDate = (date: any) => {
+          if (!date) return now;
+          return date.toDate ? date.toDate() : new Date(date);
+        };
+        
+        // Create a safe Producto object with all required fields
+        const producto: Producto = {
+          id: product.id || '',
+          codigoBarras: product.codigoBarras || product.codigo || '',
+          nombre: product.nombre || 'Sin nombre',
+          descripcion: product.descripcion || '',
+          categoriaId: product.categoriaId || product.categoria || '',
+          proveedorId: product.proveedorId || product.proveedor || '',
+          material: product.material || '',
+          costoProduccion: product.costoProduccion || 0,
+          dimensiones: product.dimensiones || { ancho: 0, alto: 0, unidad: 'cm' },
+          precios: (product.precios || [
+            { 
+              cantidadMinima: 1, 
+              precio: product.precioMenudeo || 0, 
+              tipo: 'menudeo',
+              moneda: 'MXN'
+            },
+            { 
+              cantidadMinima: product.cantidadMayoreo || 2, 
+              precio: product.precioMayoreo || 0, 
+              tipo: 'mayoreo',
+              moneda: 'MXN'
+            }
+          ]).map((p: any) => ({
+            cantidadMinima: p.cantidadMinima || 1,
+            precio: p.precio || 0,
+            tipo: p.tipo === 'mayoreo' ? 'mayoreo' : 'menudeo',
+            moneda: p.moneda || 'MXN'
+          })),
+          moneda: product.moneda || 'MXN',
+          costo: product.costo || 0,
+          stock: product.stock || 0,
+          stockMinimo: product.stockMinimo || 0,
+          stockMaximo: product.stockMaximo || 100,
+          tipo: (product.tipo === 'venta' || product.tipo === 'paquete' || product.tipo === 'produccion') 
+            ? product.tipo 
+            : 'venta',
+          imagenes: (Array.isArray(product.imagenes) 
+            ? product.imagenes.length > 0 && typeof product.imagenes[0] === 'string'
+              ? (product.imagenes as string[]).map((img, index) => ({
+                  id: `img-${index}`,
+                  nombre: `product-${product.id}-${index}`,
+                  tipo: 'image/jpeg',
+                  datos: img,
+                  orden: index,
+                  esPrincipal: index === 0
+                }))
+              : product.imagenes.map((img: any, index: number) => ({
+                  id: img.id || `img-${index}`,
+                  nombre: img.nombre || `product-${product.id}-${index}`,
+                  tipo: img.tipo || 'image/jpeg',
+                  datos: img.datos || img,
+                  orden: img.orden !== undefined ? img.orden : index,
+                  esPrincipal: img.esPrincipal || index === 0
+                }))
+            : []) as ImagenProducto[],
+          activo: product.activo !== false,
+          fechaCreacion: getSafeDate(product.fechaCreacion),
+          fechaActualizacion: getSafeDate(product.fechaActualizacion || now),
+          creadoPor: product.creadoPor || 'system',
+          historialPrecios: (product.historialPrecios || []).map((hp: any) => ({
+            fecha: getSafeDate(hp.fecha),
+            precio: hp.precio || 0,
+            moneda: hp.moneda || 'MXN',
+            motivo: hp.motivo || ''
+          })),
+          etiquetas: Array.isArray(product.etiquetas) ? product.etiquetas : [],
+          itemsPaquete: Array.isArray(product.itemsPaquete) ? product.itemsPaquete : []
+        };
+        
+        return producto;
+      });
+      
       setRows(productos);
     });
     return () => unsub();
@@ -494,61 +569,37 @@ const ProductFormWrapper: React.FC = () => {
     try {
       setIsLoading(true);
       
+      // Find retail and wholesale prices
+      const precioMenudeo = data.precios?.find(p => p.tipo === 'menudeo')?.precio || 0;
+      const precioMayoreo = data.precios?.find(p => p.tipo === 'mayoreo')?.precio || 0;
+      const cantidadMayoreo = data.precios?.find(p => p.tipo === 'mayoreo')?.cantidadMinima || 2;
+      
+      // Convert Producto to Product for Firestore
+      const productData: Product = {
+        id: data.id || '',
+        codigo: data.codigoBarras || '',
+        nombre: data.nombre || 'Producto sin nombre',
+        descripcion: data.descripcion || '',
+        categoria: data.categoriaId || '',
+        proveedor: data.proveedorId || '',
+        precioMenudeo,
+        precioMayoreo,
+        cantidadMayoreo,
+        stock: data.stock || 0,
+        stockMinimo: data.stockMinimo || 0,
+        fechaActualizacion: new Date(),
+        activo: data.activo !== false,
+        imagenes: data.imagenes?.map(img => img.datos) || []
+      };
+      
       if (isEdit && id) {
-        // Ensure all required fields are provided when updating
-        const productData: Product = {
-          ...data,
-          nombre: data.nombre || 'Producto sin nombre',
-          descripcion: data.descripcion || '',
-          categoriaId: data.categoriaId || '',
-          proveedorId: data.proveedorId || '',
-          material: data.material || '',
-          precios: data.precios || [],
-          moneda: data.moneda || 'MXN',
-          costo: data.costo || 0,
-          costoProduccion: data.costoProduccion || 0,
-          stock: data.stock || 0,
-          stockMinimo: data.stockMinimo || 0,
-          stockMaximo: data.stockMaximo || 0,
-          tipo: data.tipo || 'venta',
-          imagenes: data.imagenes || [],
-          activo: data.activo ?? true
-        };
-        
         await updateProduct(id, productData);
         showMessage('Producto actualizado correctamente', 'success');
       } else {
-        const handleAddProduct = async (data: Producto) => {
-          try {
-            // Ensure all required fields are provided with default values if missing
-            const productData: Product = {
-              nombre: data.nombre || 'Nuevo Producto',
-              descripcion: data.descripcion || '',
-              categoriaId: data.categoriaId || '',
-              proveedorId: data.proveedorId || '',
-              material: data.material || '',
-              precios: data.precios || [],
-              moneda: data.moneda || 'MXN',
-              costo: data.costo || 0,
-              costoProduccion: data.costoProduccion || 0,
-              stock: data.stock || 0,
-              stockMinimo: data.stockMinimo || 0,
-              stockMaximo: data.stockMaximo || 0,
-              tipo: data.tipo || 'venta',
-              imagenes: data.imagenes || [],
-              activo: true,
-              // Add any other required fields with defaults
-            };
-            
-            await createProduct(productData as Product);
-            showMessage('Producto creado exitosamente', 'success');
-            navigate('/inventario');
-          } catch (error) {
-            console.error('Error al crear el producto:', error);
-            showMessage('Error al crear el producto', 'error');
-          }
-        };
-        handleAddProduct(data);
+        delete productData.id; // Remove ID for new products
+        await createProduct(productData);
+        showMessage('Producto creado exitosamente', 'success');
+        navigate('/inventario');
       }
       
     } catch (error) {

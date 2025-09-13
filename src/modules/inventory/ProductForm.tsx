@@ -10,7 +10,9 @@ import {
   MenuItem, 
   Typography, 
   CircularProgress,
-  FormControlLabel
+  FormControlLabel,
+  Grid,
+  InputAdornment
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
 import { 
@@ -46,32 +48,64 @@ export type ItemPaquete = ServiceItemPaquete & {
 
 export type TipoProducto = 'venta' | 'materia_prima' | 'paquete';
 
-export type Producto = Partial<Omit<Product, 'itemsPaquete' | 'precios'>> & {
-  // Campos adicionales específicos del frontend
+export type Producto = {
+  id?: string;
+  codigoBarras?: string;
+  nombre: string;
+  descripcion: string;
+  categoriaId: string;
+  proveedorId: string;
+  material: string;
+  costoProduccion: number;
+  dimensiones: {
+    ancho: number;
+    alto: number;
+    profundidad?: number;
+    unidad: 'cm' | 'pulgadas' | 'mm';
+  };
+  precios: Array<{
+    cantidadMinima: number;
+    precio: number;
+    tipo: 'mayoreo' | 'menudeo';
+    moneda?: string;
+  }>;
+  moneda: string;
+  costo: number;
+  stock: number;
+  stockMinimo: number;
+  stockMaximo: number;
+  tipo: 'venta' | 'produccion' | 'paquete';
+  itemsPaquete?: Array<{
+    productoId: string;
+    cantidad: number;
+    tipo: 'venta' | 'produccion';
+  }>;
+  imagenes: Array<{
+    id: string;
+    nombre: string;
+    tipo: string;
+    datos: string;
+    orden: number;
+    esPrincipal: boolean;
+  }>;
+  activo: boolean;
+  fechaCreacion: Date | any;
+  fechaActualizacion: Date | any;
+  creadoPor: string;
+  historialPrecios: Array<{
+    fecha: Date;
+    precio: number;
+    moneda: string;
+    motivo?: string;
+  }>;
+  etiquetas: string[];
+  // Campos adicionales para compatibilidad
+  precioMenudeo?: number;
+  precioMayoreo?: number;
+  cantidadMayoreo?: number;
   sku?: string;
-  categoria?: string;
   supplierName?: string;
-  minStock?: number; // Alias para stockMinimo
   hasImage?: boolean;
-  fechaCreacion?: Date | any;
-  fechaActualizacion?: Date | any;
-  createdAt?: Date | any; // Alias para fechaCreacion
-  updatedAt?: Date | any; // Alias para fechaActualizacion
-  creadoPor?: string;
-  historialPrecios?: any[];
-  etiquetas?: string[];
-  // Hacer opcionales los campos requeridos para mayor flexibilidad
-  descripcion?: string;
-  categoriaId?: string;
-  proveedorId?: string;
-  material?: string;
-  costoProduccion?: number;
-  precio?: number; // Para compatibilidad
-  precioMenudeo: number;
-  precioMayoreo: number;
-  tipo: TipoProducto;
-  cantidadMayoreo?: number; // Cantidad mínima para precio de mayoreo
-  itemsPaquete?: ItemPaquete[];
 };
 
 export interface ProductFormProps {
@@ -421,7 +455,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
           label="Producto activo" 
           sx={{ gridColumn: { md: '1 / span 2' } }}
         />
-      </Box>
+      </Grid>
       
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
         <Button 

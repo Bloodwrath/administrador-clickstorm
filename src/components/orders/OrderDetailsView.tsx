@@ -31,11 +31,11 @@ import {
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
-import { Order, OrderStatus, formatCurrency } from '../../../types/order';
+import { db } from '../../services/firebase';
+import { Order, OrderStatus, formatCurrency } from '../../types/order';
 import OrderItemsList from './OrderItemsList';
 import OrderSummary from './OrderSummary';
-import { generateOrderPdf } from '../../../utils/pdfGenerator';
+import { generateOrderPdf } from '../../utils/pdfGenerator';
 import NewOrderForm from './NewOrderForm';
 
 const statusColors = {
@@ -46,6 +46,18 @@ const statusColors = {
   cancelled: 'error',
   refunded: 'default'
 } as const;
+
+// Format date from Firestore Timestamp or Date to locale string
+const formatDate = (date: Date | any): string => {
+  const jsDate = date instanceof Date ? date : new Date(date);
+  return jsDate.toLocaleDateString('es-MX', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 const statusIcons = {
   pending: <RefreshIcon />,
@@ -113,7 +125,7 @@ const OrderDetailsView: React.FC = () => {
     try {
       await updateDoc(doc(db, 'orders', orderId), {
         status: newStatus,
-        updatedAt: Timestamp.now()
+        updatedAt: new Date()
       });
       
       setOrder(prev => prev ? { ...prev, status: newStatus } : null);
@@ -252,17 +264,10 @@ const OrderDetailsView: React.FC = () => {
                 icon={statusIcons[order.status]}
                 label={order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                 color={statusColors[order.status] as any}
-                size="small"
-                variant="outlined"
-                sx={{ textTransform: 'capitalize', fontWeight: 500 }}
               />
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                Creado el {order.createdAt.toLocaleDateString()}
-              </Typography>
             </Box>
           </Box>
         </Box>
-        
         <Box>
           <Button
             variant="outlined"
@@ -352,12 +357,12 @@ const OrderDetailsView: React.FC = () => {
                 
                 <Box mb={2}>
                   <Typography variant="subtitle2" color="text.secondary">Fecha de Creación</Typography>
-                  <Typography>{order.createdAt.toLocaleString()}</Typography>
+                  <Typography>{formatDate(order.createdAt)}</Typography>
                 </Box>
                 
                 <Box mb={2}>
                   <Typography variant="subtitle2" color="text.secondary">Última Actualización</Typography>
-                  <Typography>{order.updatedAt.toLocaleString()}</Typography>
+                  <Typography>{formatDate(order.updatedAt)}</Typography>
                 </Box>
                 
                 <Box>
@@ -402,6 +407,9 @@ const OrderDetailsView: React.FC = () => {
             {/* Order Notes */}
             {order.notes && (
               <Box mt={3}>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                  Creado el {formatDate(order.createdAt)}
+                </Typography>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Notas Internas
                 </Typography>
@@ -422,6 +430,8 @@ const OrderDetailsView: React.FC = () => {
             <OrderItemsList 
               items={order.items} 
               showActions={false}
+              onRemoveItem={() => {}}
+              onUpdateQuantity={() => {}}
             />
           </Paper>
         </Grid>
