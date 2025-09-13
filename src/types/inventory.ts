@@ -40,47 +40,54 @@ export interface PaqueteItem {
 }
 
 export interface Producto {
+  // Identificación básica
   id?: string; // ID generado por Firestore
   codigoBarras?: string;
+  sku?: string; // For backward compatibility
   nombre: string;
   descripcion: string;
+  
+  // Categorización
   categoriaId: string;
+  categoria?: string; // For backward compatibility
   proveedorId: string;
+  proveedor?: string; // For backward compatibility
+  tipo: TipoProducto;
+  etiquetas: string[];
+  ubicacion?: string;
+  
+  // Especificaciones
   dimensiones: Dimensiones;
   material: string;
-  
-  // Precios dinámicos basados en cantidad
-  precios: PrecioCantidad[];
-  moneda: string;
-  
-  // Costos
-  costo: number;
-  costoProduccion?: number;
   
   // Inventario
   stock: number;
   stockMinimo: number;
   stockMaximo: number;
   
-  // Tipo de producto
-  tipo: TipoProducto;
+  // Precios y costos
+  precios: PrecioCantidad[];
+  moneda: string;
+  costo: number;
+  costoProduccion?: number;
+  historialPrecios: PrecioHistorico[];
   
   // Solo para paquetes
   itemsPaquete?: PaqueteItem[];
   
-  // Imágenes y estado
+  // Imágenes
   imagenes: ImagenProducto[];
+  hasImage?: boolean;
+  
+  // Estado
   activo: boolean;
   
   // Auditoría
-  fechaCreacion: Date;
-  fechaActualizacion: Date;
   creadoPor: string; // ID del usuario
+  fechaCreacion: Date | any;
+  fechaActualizacion: Date | any;
   
-  // Historial
-  historialPrecios: PrecioHistorico[];
-  etiquetas: string[];
-  ubicacion?: string;
+  // Notas adicionales
   notas?: string;
 }
 

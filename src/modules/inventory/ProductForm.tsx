@@ -24,14 +24,12 @@ import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 
-// Import types from services
-import { 
-  Product, 
-  ItemPaquete as ServiceItemPaquete,
-  type Precio
-} from '../../services/products';
+// Import types
+import { Producto, TipoProducto, PrecioCantidad, ImagenProducto, PaqueteItem, Dimensiones } from '../../types/inventory';
 
-// Define interfaces
+// Define local types
+export type ItemPaquete = PaqueteItem;
+
 interface Supplier {
   id: string;
   nombre: string;
@@ -42,77 +40,58 @@ interface Supplier {
   activo: boolean;
 }
 
-export type ItemPaquete = ServiceItemPaquete & {
-  tipo: 'venta' | 'produccion';
-};
-
-export type TipoProducto = 'venta' | 'materia_prima' | 'paquete';
-
-export type Producto = {
-  id?: string;
-  codigoBarras?: string;
-  nombre: string;
-  descripcion: string;
-  categoriaId: string;
-  proveedorId: string;
-  material: string;
-  costoProduccion: number;
-  dimensiones: {
-    ancho: number;
-    alto: number;
-    profundidad?: number;
-    unidad: 'cm' | 'pulgadas' | 'mm';
-  };
-  precios: Array<{
-    cantidadMinima: number;
-    precio: number;
-    tipo: 'mayoreo' | 'menudeo';
-    moneda?: string;
-  }>;
-  moneda: string;
-  costo: number;
-  stock: number;
-  stockMinimo: number;
-  stockMaximo: number;
-  tipo: 'venta' | 'produccion' | 'paquete';
-  itemsPaquete?: Array<{
-    productoId: string;
-    cantidad: number;
-    tipo: 'venta' | 'produccion';
-  }>;
-  imagenes: Array<{
-    id: string;
-    nombre: string;
-    tipo: string;
-    datos: string;
-    orden: number;
-    esPrincipal: boolean;
-  }>;
-  activo: boolean;
-  fechaCreacion: Date | any;
-  fechaActualizacion: Date | any;
-  creadoPor: string;
-  historialPrecios: Array<{
-    fecha: Date;
-    precio: number;
-    moneda: string;
-    motivo?: string;
-  }>;
-  etiquetas: string[];
-  // Campos adicionales para compatibilidad
+// Form data type that extends Producto with form-specific fields
+export interface ProductoFormData extends Omit<Producto, 'fechaCreacion' | 'fechaActualizacion' | 'historialPrecios' | 'etiquetas' | 'imagenes'> {
+  imagenes: (ImagenProducto | File)[];
+  nuevaImagen?: File;
+  etiquetas: string;
+  precios: PrecioCantidad[];
+  dimensiones: Dimensiones;
+  // Additional fields for form compatibility
   precioMenudeo?: number;
   precioMayoreo?: number;
   cantidadMayoreo?: number;
+  minStock?: number;
+  precio?: number;
   sku?: string;
   supplierName?: string;
   hasImage?: boolean;
+}
+
+// Default values for new product
+const defaultValues: ProductoFormData = {
+  nombre: '',
+  codigoBarras: '',
+  descripcion: '',
+  categoriaId: '',
+  categoria: '',
+  proveedorId: '',
+  proveedor: '',
+  tipo: 'venta',
+  material: '',
+  stock: 0,
+  stockMinimo: 0,
+  stockMaximo: 0,
+  costo: 0,
+  costoProduccion: 0,
+  moneda: 'MXN',
+  precios: [
+    { cantidadMinima: 1, precio: 0, tipo: 'menudeo' },
+    { cantidadMinima: 10, precio: 0, tipo: 'mayoreo' }
+  ],
+  imagenes: [],
+  etiquetas: '',
+  activo: true,
+  creadoPor: '',
+  dimensiones: { ancho: 0, alto: 0, unidad: 'cm' },
+  itemsPaquete: []
 };
 
 export interface ProductFormProps {
-  onSubmit: (data: Producto) => Promise<void>;
+  onSubmit: (data: ProductoFormData) => Promise<void>;
   isEdit: boolean;
   productId?: string;
-  initialData?: Partial<Producto>;
+  initialData?: Partial<ProductoFormData>;
 }
 
 const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, initialData = {} }) => {
@@ -125,16 +104,23 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     setValue, 
     watch, 
     formState: { errors }
-  } = useForm<Producto>({
+  } = useForm<ProductoFormData>({
     defaultValues: {
+      ...defaultValues,
       ...initialData,
-      minStock: initialData.minStock ?? initialData.stockMinimo ?? 0,
-      precio: initialData.precio ?? 0,
-      precioMenudeo: initialData.precioMenudeo ?? initialData.precio ?? 0,
-      precioMayoreo: initialData.precioMayoreo ?? initialData.precio ?? 0,
-      cantidadMayoreo: initialData.cantidadMayoreo ?? 5,
-      costo: initialData.costo ?? 0,
-      stock: initialData.stock ?? 0,
+      stockMinimo: initialData.stockMinimo ?? initialData.minStock ?? 0,
+      precios: initialData.precios ?? [
+        { 
+          cantidadMinima: 1, 
+          precio: initialData.precioMenudeo ?? initialData.precio ?? 0, 
+          tipo: 'menudeo' 
+        },
+        { 
+          cantidadMinima: initialData.cantidadMayoreo ?? 10, 
+          precio: initialData.precioMayoreo ?? initialData.precio ?? 0, 
+          tipo: 'mayoreo' 
+        }
+      ],
       activo: initialData.activo ?? true,
       tipo: initialData.tipo ?? 'venta',
       itemsPaquete: initialData.itemsPaquete || [],
@@ -178,8 +164,20 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
         if (isEdit && productId) {
           // TODO: Replace with actual API call
           // const productData = await getProductById(productId);
-          // Object.entries(productData).forEach(([key, value]) => {
-          //   setValue(key as keyof Producto, value);
+          // // Map product data to form data
+          // const formData: Partial<ProductoFormData> = {
+          //   ...productData,
+          //   etiquetas: productData.etiquetas?.join(', ') || '',
+          //   precioMenudeo: productData.precios?.find(p => p.tipo === 'menudeo')?.precio,
+          //   precioMayoreo: productData.precios?.find(p => p.tipo === 'mayoreo')?.precio,
+          //   cantidadMayoreo: productData.precios?.find(p => p.tipo === 'mayoreo')?.cantidadMinima,
+          //   minStock: productData.stockMinimo,
+          //   precio: productData.precios?.[0]?.precio
+          // };
+          // Object.entries(formData).forEach(([key, value]) => {
+          //   if (value !== undefined) {
+          //     setValue(key as keyof ProductoFormData, value);
+          // }
           // });
         }
       } catch (error) {
@@ -191,28 +189,54 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     loadData();
   }, [productId, isEdit, setValue, enqueueSnackbar]);
 
+  // Update form values when initialData changes
   useEffect(() => {
     if (initialData) {
-      if (initialData.precio) setValue('precio', initialData.precio);
-      if (initialData.precioMenudeo) setValue('precioMenudeo', initialData.precioMenudeo);
-      if (initialData.precioMayoreo) setValue('precioMayoreo', initialData.precioMayoreo);
-      if (initialData.cantidadMayoreo) setValue('cantidadMayoreo', initialData.cantidadMayoreo);
-      if (initialData.costo) setValue('costo', initialData.costo);
-      if (initialData.stock) setValue('stock', initialData.stock);
-      if (initialData.minStock !== undefined) setValue('minStock', initialData.minStock);
-      if (initialData.stockMinimo !== undefined) setValue('minStock', initialData.stockMinimo);
-      if (initialData.activo !== undefined) setValue('activo', initialData.activo);
-      if (initialData.tipo) setValue('tipo', initialData.tipo);
+      const updates: Partial<ProductoFormData> = {};
+      
+      // Map legacy fields to new structure
+      if (initialData.precio !== undefined) updates.precio = initialData.precio;
+      if (initialData.precioMenudeo !== undefined) updates.precioMenudeo = initialData.precioMenudeo;
+      if (initialData.precioMayoreo !== undefined) updates.precioMayoreo = initialData.precioMayoreo;
+      if (initialData.cantidadMayoreo !== undefined) updates.cantidadMayoreo = initialData.cantidadMayoreo;
+      if (initialData.costo !== undefined) updates.costo = initialData.costo;
+      if (initialData.stock !== undefined) updates.stock = initialData.stock;
+      if (initialData.minStock !== undefined) updates.stockMinimo = initialData.minStock;
+      if (initialData.stockMinimo !== undefined) updates.stockMinimo = initialData.stockMinimo;
+      if (initialData.activo !== undefined) updates.activo = initialData.activo;
+      if (initialData.tipo) updates.tipo = initialData.tipo;
+      
+      // Update all fields at once to avoid multiple re-renders
+      Object.entries(updates).forEach(([key, value]) => {
+        setValue(key as keyof ProductoFormData, value);
+      });
+      
+      // Update prices if needed
+      if (initialData.precioMenudeo !== undefined || initialData.precioMayoreo !== undefined) {
+        setValue('precios', [
+          { 
+            cantidadMinima: 1, 
+            precio: initialData.precioMenudeo ?? initialData.precio ?? 0, 
+            tipo: 'menudeo' as const 
+          },
+          { 
+            cantidadMinima: initialData.cantidadMayoreo ?? 10, 
+            precio: initialData.precioMayoreo ?? initialData.precio ?? 0, 
+            tipo: 'mayoreo' as const 
+          }
+        ]);
+      }
     }
   }, [initialData, setValue]);
 
   const handleAddPrecio = () => {
-    const newPrecios = [...watch('precios')];
+    const currentPrecios = watch('precios') || [];
+    const newPrecios = [...currentPrecios];
     const nextMinQty = newPrecios.length > 0 
       ? Math.max(...newPrecios.map(p => p.cantidadMinima)) + 1 
       : 1;
     
-    const newPrecio: Precio = {
+    const newPrecio: PrecioCantidad = {
       cantidadMinima: nextMinQty,
       precio: 0,
       tipo: 'menudeo'
@@ -222,7 +246,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
   };
 
   const handleRemovePrecio = (index: number) => {
-    const newPrecios = [...watch('precios')];
+    const currentPrecios = watch('precios') || [];
+    const newPrecios = [...currentPrecios];
     newPrecios.splice(index, 1);
     setValue('precios', newPrecios);
   };
@@ -254,16 +279,35 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     fileReader.readAsDataURL(file);
   };
 
-  const validateForm = async (data: Producto) => {
-    // Basic validation
-    if (!data.nombre || !data.nombre.trim()) {
-      enqueueSnackbar('El nombre del producto es requerido', { variant: 'error' });
+  const validateForm = async (data: ProductoFormData): Promise<boolean> => {
+    // Validate required fields
+    if (!data.nombre || !data.codigoBarras || !data.categoriaId) {
+      enqueueSnackbar('Por favor complete todos los campos requeridos', { variant: 'error' });
+      return false;
+    }
+
+    // Validate stock values
+    if (data.stock < 0 || (data.stockMinimo ?? 0) < 0 || (data.stockMaximo ?? 0) < 0) {
+      enqueueSnackbar('Los valores de stock no pueden ser negativos', { variant: 'error' });
+      return false;
+    }
+
+    // Validate stock min/max
+    if ((data.stockMinimo ?? 0) > (data.stockMaximo ?? 0)) {
+      enqueueSnackbar('El stock mínimo no puede ser mayor al stock máximo', { variant: 'error' });
       return false;
     }
 
     // Validate prices
-    if (!data.precios || data.precios.length === 0) {
-      enqueueSnackbar('Debe agregar al menos un precio', { variant: 'error' });
+    if (data.precios && data.precios.length > 0) {
+      for (const precio of data.precios) {
+        if (precio.precio <= 0) {
+          enqueueSnackbar('Los precios deben ser mayores a 0', { variant: 'error' });
+          return false;
+        }
+      }
+    } else {
+      enqueueSnackbar('Debe definir al menos un precio', { variant: 'error' });
       return false;
     }
 
@@ -276,44 +320,61 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     return true;
   };
 
-  const onSubmitForm = async (data: Producto) => {
+  const onSubmitForm = async (formData: ProductoFormData) => {
     try {
       setIsLoading(true);
       
-      // Validate form before submission
-      const isValid = await validateForm(data);
-      if (!isValid) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Prepare product data
-      const productData: Producto = {
-        ...data,
-        stockMinimo: data.minStock,
-        precio: data.precioMenudeo, // Keep for backward compatibility
-        precioMenudeo: data.precioMenudeo || 0,
-        precioMayoreo: data.precioMayoreo || 0,
-        cantidadMayoreo: data.cantidadMayoreo || 5,
-        costo: data.costo || 0,
-        stock: data.stock || 0,
-        activo: data.activo ?? true,
-        tipo: data.tipo || 'venta',
+      // Process form data before submission
+      const submitData: Producto = {
+        ...formData,
+        // Ensure required fields are set
+        stock: formData.stock || 0,
+        stockMinimo: formData.stockMinimo || 0,
+        stockMaximo: formData.stockMaximo || 0,
+        costo: formData.costo || 0,
+        costoProduccion: formData.costoProduccion || 0,
+        activo: formData.activo ?? true,
+        // Process prices
+        precios: (formData.precios || [])
+          .filter(p => p && p.precio > 0)
+          .map(p => ({
+            cantidadMinima: p.cantidadMinima,
+            precio: p.precio,
+            tipo: p.tipo
+          })),
+        // Process tags
+        etiquetas: formData.etiquetas ? 
+          formData.etiquetas.split(',').map(tag => tag.trim()) : 
+          [],
+        // Process images
+        imagenes: formData.imagenes
+          .filter((img): img is ImagenProducto => !(img instanceof File))
+          .map(img => ({
+            id: img.id,
+            nombre: img.nombre,
+            tipo: img.tipo,
+            datos: img.datos,
+            orden: img.orden,
+            esPrincipal: img.esPrincipal
+          })),
+        // Set timestamps
+        fechaActualizacion: new Date(),
+        ...(!isEdit && { 
+          fechaCreacion: new Date(),
+          creadoPor: 'current-user-id' // This should be replaced with the actual user ID
+        })
       };
 
-      // If it's a package, ensure it has items
-      if (productData.tipo === 'paquete' && (!productData.itemsPaquete || productData.itemsPaquete.length === 0)) {
-        enqueueSnackbar('Un paquete debe contener al menos un producto', { variant: 'error' });
-        return;
-      }
-
-      await onSubmit(productData);
-      
-      // Navigate back to inventory list
-      navigate('/inventory');
+      await onSubmit(formData);
+      enqueueSnackbar(`Producto ${isEdit ? 'actualizado' : 'creado'} correctamente`, { 
+        variant: 'success' 
+      });
+      navigate('/inventario');
     } catch (error) {
       console.error('Error saving product:', error);
-      enqueueSnackbar('Error al guardar el producto', { variant: 'error' });
+      enqueueSnackbar('Error al guardar el producto', { 
+        variant: 'error' 
+      });
     } finally {
       setIsLoading(false);
     }
