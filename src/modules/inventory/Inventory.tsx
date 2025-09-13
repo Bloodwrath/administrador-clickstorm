@@ -42,11 +42,24 @@ import {
   Tooltip,
   Badge,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Container
 } from '@mui/material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import {
+  Add as AddIcon,
+  Save as SaveIcon,
+  Image as ImageIcon
+} from '@mui/icons-material';
+// Firebase
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase';
+
+// Context
 import { useAuth } from '../../context/AuthContext';
-// Import services and types
+import { useSnackbar } from '../../context/SnackbarContext';
+
+// Services
 import { 
   Product as ProductServiceType, 
   listenProducts, 
@@ -55,7 +68,6 @@ import {
   updateProduct, 
   getProductById
 } from '../../services/products';
-
 import { 
   Supplier,
   listenSuppliers, 
@@ -64,14 +76,14 @@ import {
   deleteSupplier, 
   getSupplierById 
 } from '../../services/suppliers';
-
-type SupplierType = Supplier;
-
 import { getLargeText } from '../../services/textStorage';
-import { useSnackbar } from '../../context/SnackbarContext';
 
+// Types
 import { Producto, ImagenProducto, PrecioCantidad } from '../../types/inventory';
 import type { Product as ProductType } from '../../types/product';
+import ProductForm from './ProductForm';
+
+type SupplierType = Supplier;
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -625,7 +637,20 @@ const ProductFormWrapper = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [initialData, setInitialData] = useState<Partial<Producto>>({});
   const [open, setOpen] = useState(true);
+  const [formData, setFormData] = useState<Partial<Producto>>({});
   
+  // Define the Firestore product type with all possible fields
+  type FirestoreProduct = Partial<Producto> & {
+    id?: string;
+    codigo?: string;
+    precioMenudeo?: number;
+    cantidadMayoreo?: number;
+    precioMayoreo?: number;
+    fechaCreacion?: any; // Firestore Timestamp or Date
+    fechaActualizacion?: any; // Firestore Timestamp or Date
+    imagenes?: any[]; // Array of image data
+  };
+
   const handleClose = () => {
     setOpen(false);
     navigate('/inventario');
@@ -638,61 +663,44 @@ const ProductFormWrapper = () => {
       
       setIsLoading(true);
       try {
-        const product = await getProductById(id);
+        const product = await getProductById(id) as FirestoreProduct;
         if (product) {
-          // Map Firestore Product to Producto type
+          // Map Firestore Product to Producto type with proper type safety
           const productData: Partial<Producto> = {
             ...product,
-            codigoBarras: product.codigo || product.codigoBarras,
-            // Handle prices array
-            precios: product.precios || [
-              { cantidadMinima: 1, precio: product.precioMenudeo || 0, tipo: 'menudeo' },
-              { cantidadMinima: product.cantidadMayoreo || 10, precio: product.precioMayoreo || 0, tipo: 'mayoreo' }
-            ],
-            // Convert Firestore timestamps to Date objects
-            fechaCreacion: product.fechaCreacion?.toDate ? product.fechaCreacion.toDate() : new Date(),
-            fechaActualizacion: product.fechaActualizacion?.toDate ? product.fechaActualizacion.toDate() : new Date(),
-            // Map images if they exist
-            imagenes: Array.isArray(product.imagenes) 
-              ? product.imagenes.map((img: any, index: number) => ({
-                  id: `img-${index}`,
-                  nombre: `product-${product.id}-${index}`,
-                  tipo: 'image/jpeg',
-                  datos: img,
-                  orden: index,
-                  esPrincipal: index === 0
-                }))
-              : [],
-            // Set default values for required fields
-            stock: product.stock || 0,
-            stockMinimo: product.stockMinimo || 0,
-            stockMaximo: product.stockMaximo || 0,
-            costo: product.costo || 0,
-            costoProduccion: product.costoProduccion || 0,
-            moneda: product.moneda || 'MXN',
-            activo: product.activo !== undefined ? product.activo : true,
-            // Map prices if they exist
-            precios: product.precios || [
-              {
-                cantidadMinima: 1,
-                precio: product.precioMenudeo || 0,
-                tipo: 'menudeo'
+            codigoBarras: (product as FirestoreProduct).codigo || product.codigoBarras || '',
+            precios: (product as FirestoreProduct).precios || [
+              { 
+                cantidadMinima: 1, 
+                precio: (product as FirestoreProduct).precioMenudeo || 0, 
+                tipo: 'menudeo' as const
               },
-              {
-                cantidadMinima: product.cantidadMayoreo || 2,
-                precio: product.precioMayoreo || 0,
-                tipo: 'mayoreo'
+              { 
+                cantidadMinima: (product as FirestoreProduct).cantidadMayoreo || 10, 
+                precio: (product as FirestoreProduct).precioMayoreo || 0, 
+                tipo: 'mayoreo' as const
               }
             ],
-            // Map images if they exist
-            imagenes: Array.isArray(product.imagenes) ? product.imagenes.map((img: any, index: number) => ({
-              id: `img-${index}`,
-              nombre: `product-${product.id}-${index}`,
-              tipo: 'image/jpeg',
-              datos: img,
-              orden: index,
-              esPrincipal: index === 0
-            })) : []
+            fechaCreacion: (product as FirestoreProduct).fechaCreacion?.toDate?.() || new Date(),
+            fechaActualizacion: (product as FirestoreProduct).fechaActualizacion?.toDate?.() || new Date(),
+            // Map images to the correct format, ensuring datos is a string (URL)
+            imagenes: Array.isArray(product.imagenes) 
+              ? product.imagenes.map((img: any, imgIndex: number) => ({
+                  id: `img-${imgIndex}`,
+                  nombre: `product-${product.id}-${imgIndex}`,
+                  tipo: 'imagen' as const,
+                  datos: typeof img === 'string' ? img : (img.url || ''), // Ensure datos is a string
+                  orden: imgIndex,
+                  esPrincipal: imgIndex === 0
+                } as ImagenProducto))
+              : [],
+            stock: Number(product.stock) || 0,
+            stockMinimo: Number(product.stockMinimo) || 0,
+            stockMaximo: Number(product.stockMaximo) || 0,
+            costo: Number(product.costo) || 0,
+            costoProduccion: Number(product.costoProduccion) || 0,
+            moneda: product.moneda || 'MXN',
+            activo: product.activo !== undefined ? Boolean(product.activo) : true
           };
           
           setInitialData(productData);
@@ -708,38 +716,56 @@ const ProductFormWrapper = () => {
     loadProduct();
   }, [id, isEdit, showMessage]);
 
-  const handleSubmitForm = async (data: Producto) => {
+  // Add a new product to Firestore
+  const addProduct = async (productData: Partial<Producto>): Promise<Partial<Producto> & { id: string }> => {
+    if (!currentUser) throw new Error('No user logged in');
+    
+    // Ensure required fields are present
+    const newProduct: Omit<Partial<Producto>, 'id'> & { 
+      creadoPor: string; 
+      fechaCreacion: any; 
+      fechaActualizacion: any;
+      activo: boolean;
+    } = {
+      ...productData,
+      creadoPor: currentUser.uid,
+      fechaCreacion: serverTimestamp(),
+      fechaActualizacion: serverTimestamp(),
+      activo: true,
+      // Ensure arrays are properly initialized
+      precios: productData.precios || [],
+      imagenes: productData.imagenes || []
+    };
+    
+    const docRef = await addDoc(collection(db, 'productos'), newProduct);
+    return { id: docRef.id, ...newProduct };
+  };
+
+  const handleSubmitForm = async (data: Partial<Producto>) => {
+    if (!currentUser) return;
+
     try {
       setIsLoading(true);
       
-      // Find retail and wholesale prices
-      const menudeoPrice = data.precios?.find(p => p.tipo === 'menudeo');
-      const mayoreoPrice = data.precios?.find(p => p.tipo === 'mayoreo');
-      
-      // Convert Producto to Firestore document
-      const productData: any = {
-        // Basic info
-        nombre: data.nombre || 'Producto sin nombre',
+      // Prepare product data
+      const productData: Partial<Producto> = {
+        ...data,
+        nombre: data.nombre || '',
         descripcion: data.descripcion || '',
-        categoriaId: data.categoriaId || '',
-        proveedorId: data.proveedorId || '',
-        
-        // Pricing
-        precios: data.precios || [],
-        precioMenudeo: menudeoPrice?.precio || 0,
-        precioMayoreo: mayoreoPrice?.precio || 0,
-        cantidadMayoreo: mayoreoPrice?.cantidadMinima || 2,
-        
-        fechaActualizacion: new Date(),
-        // Ensure required fields
-        stock: formData.stock || 0,
-        stockMinimo: formData.stockMinimo || 0,
-        stockMaximo: formData.stockMaximo || 0,
-        costo: formData.costo || 0,
-        costoProduccion: formData.costoProduccion || 0,
-        moneda: formData.moneda || 'MXN',
+        codigoBarras: data.codigoBarras || '',
+        categoria: data.categoria || '',
+        unidadMedida: data.unidadMedida || 'unidad',
+        precios: data.precios || [
+          { cantidadMinima: 1, precio: 0, tipo: 'menudeo' as const }
+        ],
+        stock: data.stock || 0,
+        stockMinimo: data.stockMinimo || 0,
+        stockMaximo: data.stockMaximo || 0,
+        costo: data.costo || 0,
+        costoProduccion: data.costoProduccion || 0,
+        moneda: data.moneda || 'MXN',
         // Handle images
-        imagenes: formData.imagenes?.map(img => 
+        imagenes: data.imagenes?.map(img => 
           typeof img === 'string' ? img : img.datos
         )
       };
@@ -750,23 +776,12 @@ const ProductFormWrapper = () => {
         showMessage('Producto actualizado correctamente', 'success');
       } else {
         // Create new product
-        await addProduct({
-          ...productData,
-          fechaCreacion: new Date(),
-          creadoPor: currentUser?.uid || '',
-          activo: true,
-          historialPrecios: [{
-            fecha: new Date(),
-            precio: productData.precios?.[0]?.precio || 0,
-            moneda: productData.moneda || 'MXN',
-            motivo: 'Precio inicial'
-          }]
-        });
-        await addProduct(newProduct);
+        const newProduct = await addProduct(productData);
         showMessage('Producto creado correctamente', 'success');
+        navigate(`/inventario/editar/${newProduct.id}`);
       }
       
-      onClose();
+      handleClose();
     } catch (error) {
       console.error('Error saving product:', error);
       showMessage('Error al guardar el producto', 'error');
