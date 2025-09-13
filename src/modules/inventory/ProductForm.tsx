@@ -30,6 +30,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 
+// Import types from services
+import { Product, Precio as ServicePrecio, ItemPaquete as ServiceItemPaquete } from '../../services/products';
+
 // Define interfaces
 interface Supplier {
   id: string;
@@ -41,43 +44,33 @@ interface Supplier {
   activo: boolean;
 }
 
-interface Precio {
-  cantidadMinima: number;
-  precio: number;
-  tipo: 'mayoreo' | 'menudeo';
-}
-
-interface ItemPaquete {
-  productoId: string;
-  cantidad: number;
+export type ItemPaquete = ServiceItemPaquete & {
   tipo: 'venta' | 'produccion';
-}
+};
 
-export interface Producto {
-  id?: string;
-  nombre: string;
-  codigoBarras?: string;
-  descripcion: string;
-  categoriaId: string;
-  proveedorId: string;
+export type Producto = Partial<Omit<Product, 'itemsPaquete'>> & {
+  // Campos adicionales específicos del frontend
+  sku?: string;
+  categoria?: string;
+  supplierName?: string;
+  minStock?: number; // Alias para stockMinimo
+  hasImage?: boolean;
+  fechaCreacion?: Date | any;
+  fechaActualizacion?: Date | any;
+  createdAt?: Date | any; // Alias para fechaCreacion
+  updatedAt?: Date | any; // Alias para fechaActualizacion
+  creadoPor?: string;
+  historialPrecios?: any[];
+  etiquetas?: string[];
+  // Hacer opcionales los campos requeridos para mayor flexibilidad
+  descripcion?: string;
+  categoriaId?: string;
+  proveedorId?: string;
   material?: string;
-  precios: Precio[];
-  moneda: string;
-  costo: number;
-  costoProduccion: number;
-  stock: number;
-  stockMinimo: number;
-  stockMaximo: number;
-  tipo: 'venta' | 'produccion' | 'paquete';
+  costoProduccion?: number;
+  precio?: number; // Para compatibilidad
   itemsPaquete?: ItemPaquete[];
-  imagenes: string[];
-  activo: boolean;
-  fechaCreacion: Date;
-  fechaActualizacion: Date;
-  creadoPor: string;
-  historialPrecios: any[];
-  etiquetas: string[];
-}
+};
 
 export interface ProductFormProps {
   onSubmit: (data: Producto) => Promise<void>;
