@@ -8,13 +8,12 @@ import {
   CircularProgress, 
   Box, 
   Typography, 
-  InputAdornment, 
-  IconButton,
+  InputAdornment,
   Paper,
   Divider,
   Chip
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
+import { Search as SearchIcon } from '@mui/icons-material';
 
 interface ProductSearchProps {
   onSelectProduct: (product: Product) => void;

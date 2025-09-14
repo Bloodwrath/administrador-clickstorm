@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -12,7 +12,6 @@ import {
   MenuItem, 
   SelectChangeEvent, 
   Button, 
-  TextField, 
   Table, 
   TableBody, 
   TableCell, 
@@ -25,20 +24,18 @@ import {
   CircularProgress
 } from '@mui/material';
 import { 
-  DateRange as DateRangeIcon, 
   Refresh as RefreshIcon, 
-  FileDownload as ExportIcon,
   BarChart as BarChartIcon,
   ShowChart as LineChartIcon,
   PieChart as PieChartIcon,
   TableChart as TableViewIcon,
 } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { format, subDays } from 'date-fns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { es } from 'date-fns/locale';
 import { db } from '../../services/firebase';
 import { formatCurrency } from '../../types/order';
@@ -85,75 +82,8 @@ const SalesReports: React.FC = () => {
     averageOrderValue: 0,
   });
 
-  // Fetch and process data
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Determine date range based on preset
-        let startDate = new Date();
-        let endDate = new Date();
-        
-        switch (dateRangePreset) {
-          case 'today':
-            startDate = startOfDay(new Date());
-            endDate = endOfDay(new Date());
-            break;
-          case 'yesterday':
-            const yesterday = subDays(new Date(), 1);
-            startDate = startOfDay(yesterday);
-            endDate = endOfDay(yesterday);
-            break;
-          case 'thisWeek':
-            startDate = startOfDay(subDays(new Date(), 7));
-            endDate = endOfDay(new Date());
-            break;
-          case 'thisMonth':
-            startDate = startOfMonth(new Date());
-            endDate = endOfDay(new Date());
-            break;
-          case 'custom':
-            startDate = dateRange.start;
-            endDate = dateRange.end;
-            break;
-          default:
-            startDate = startOfMonth(new Date());
-            endDate = endOfDay(new Date());
-        }
-
-        // Query orders
-        const ordersRef = collection(db, 'orders');
-        const q = query(
-          ordersRef,
-          where('createdAt', '>=', Timestamp.fromDate(startDate)),
-          where('createdAt', '<=', Timestamp.fromDate(endDate)),
-          orderBy('createdAt', 'desc')
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const ordersData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-          total: doc.data().total || 0,
-          items: doc.data().items || []
-        }));
-
-        // Process data for charts
-        processReportData(ordersData, startDate, endDate);
-      } catch (error) {
-        console.error('Error fetching sales data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [dateRangePreset, dateRange, groupBy]);
-
-  // Process data for charts and tables
-  const processReportData = (orders: any[], startDate: Date, endDate: Date) => {
-    // Group orders by selected time period
+  // Process report data
+  const processReportData = useCallback((orders: any[], startDate: Date, endDate: Date) => {
     const groupedData: Record<string, any> = {};
     let totalSales = 0;
     const totalOrders = orders.length;
@@ -176,31 +106,23 @@ const SalesReports: React.FC = () => {
           dateKey = format(currentDate, 'MMM yyyy', { locale: es });
           currentDate.setMonth(currentDate.getMonth() + 1);
           break;
-        case 'year':
-          dateKey = format(currentDate, 'yyyy');
-          currentDate.setFullYear(currentDate.getFullYear() + 1);
-          break;
         default:
           dateKey = format(currentDate, 'yyyy-MM-dd');
           currentDate.setDate(currentDate.getDate() + 1);
       }
       
-      if (!groupedData[dateKey]) {
-        groupedData[dateKey] = {
-          date: dateKey,
-          totalSales: 0,
-          orderCount: 0,
-          averageOrderValue: 0
-        };
-      }
+      groupedData[dateKey] = {
+        date: dateKey,
+        totalSales: 0,
+        orderCount: 0,
+        averageOrderValue: 0
+      };
     }
     
-    // Process orders
+    // Process each order
     orders.forEach(order => {
-      totalSales += order.total || 0;
-      
-      let dateKey = '';
       const orderDate = order.createdAt.toDate();
+      let dateKey = '';
       
       switch (groupBy) {
         case 'day':
@@ -212,38 +134,82 @@ const SalesReports: React.FC = () => {
         case 'month':
           dateKey = format(orderDate, 'MMM yyyy', { locale: es });
           break;
-        case 'year':
-          dateKey = format(orderDate, 'yyyy');
-          break;
         default:
           dateKey = format(orderDate, 'yyyy-MM-dd');
       }
       
-      if (groupedData[dateKey]) {
-        groupedData[dateKey].totalSales += order.total || 0;
-        groupedData[dateKey].orderCount += 1;
+      if (!groupedData[dateKey]) {
+        groupedData[dateKey] = {
+          date: dateKey,
+          totalSales: 0,
+          orderCount: 0,
+          averageOrderValue: 0
+        };
+      }
+      
+      const orderTotal = order.total || 0;
+      groupedData[dateKey].totalSales += orderTotal;
+      groupedData[dateKey].orderCount += 1;
+      totalSales += orderTotal;
+    });
+    
+    // Calculate average order value for each group
+    Object.values(groupedData).forEach(group => {
+      if (group.orderCount > 0) {
+        group.averageOrderValue = group.totalSales / group.orderCount;
       }
     });
     
-    // Calculate averages
-    Object.keys(groupedData).forEach(key => {
-      if (groupedData[key].orderCount > 0) {
-        groupedData[key].averageOrderValue = groupedData[key].totalSales / groupedData[key].orderCount;
-      }
-    });
+    // Calculate overall average order value
+    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
     
-    // Convert to array and sort
-    const reportDataArray = Object.values(groupedData).sort((a: any, b: any) => {
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
-    });
-    
-    setReportData(reportDataArray);
+    // Update state
+    setReportData(Object.values(groupedData));
     setSummary({
       totalSales,
       totalOrders,
-      averageOrderValue: totalOrders > 0 ? totalSales / totalOrders : 0
+      averageOrderValue
     });
-  };
+  }, [groupBy]); // Add groupBy as a dependency since it's used in the function
+
+  // Fetch and process data
+  useEffect(() => {
+    // processReportData is wrapped in useCallback with groupBy as a dependency
+    // so we don't need to add it to the dependencies array
+    const fetchData = async () => {
+      if (!dateRange.start || !dateRange.end) return;
+      
+      setLoading(true);
+      try {
+        // Query orders
+        const ordersRef = collection(db, 'orders');
+        const q = query(
+          ordersRef,
+          where('createdAt', '>=', Timestamp.fromDate(dateRange.start)),
+          where('createdAt', '<=', Timestamp.fromDate(dateRange.end)),
+          orderBy('createdAt', 'desc')
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const ordersData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          total: doc.data().total || 0,
+          items: doc.data().items || []
+        }));
+
+        // Process data for charts
+        processReportData(ordersData, dateRange.start, dateRange.end);
+      } catch (error) {
+        console.error('Error fetching sales data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [dateRange, groupBy, processReportData]); // Added processReportData to dependencies
 
   // Handle UI changes
   const handleDateRangePresetChange = (event: SelectChangeEvent) => {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box, 
@@ -6,7 +6,6 @@ import {
   Grid, 
   Card, 
   CardContent, 
-  Button, 
   Divider, 
   TextField, 
   InputAdornment, 
@@ -18,17 +17,14 @@ import {
   Paper
 } from '@mui/material';
 import { 
-  Save as SaveIcon, 
   ArrowBack as BackIcon, 
-  Add as AddIcon,
-  Info as InfoIcon,
   Person as PersonIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
   Home as HomeIcon,
   Notes as NotesIcon
 } from '@mui/icons-material';
-import { collection, addDoc, Timestamp, writeBatch, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { Order, OrderItem, initialOrderState, generateOrderNumber } from '../../types/order';
 import { Product } from '../../types/product';
@@ -59,7 +55,7 @@ const NewOrderForm: React.FC<NewOrderFormProps> = ({
     orderNumber: initialOrder.orderNumber || generateOrderNumber(),
   });
   
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [, setSelectedProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,

@@ -11,10 +11,9 @@ import {
   TableHead, 
   TableRow, 
   TablePagination, 
-  TableSortLabel, 
   TextField, 
   InputAdornment, 
-  IconButton, 
+  IconButton,
   Tooltip, 
   Chip, 
   MenuItem, 
@@ -29,13 +28,12 @@ import {
 } from '@mui/material';
 import { 
   Search as SearchIcon, 
-  FilterList as FilterListIcon, 
+  Delete as DeleteIcon,
   Add as AddIcon,
   Refresh as RefreshIcon,
-  PictureAsPdf as PdfIcon,
+  FilterList as FilterListIcon,
   Visibility as ViewIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { collection, getDocs, query, where, orderBy as firestoreOrderBy, Timestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -77,8 +75,8 @@ const OrdersList: React.FC<OrdersListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(limit);
-  const [orderBy, setOrderBy] = useState<SortField>('createdAt');
-  const [orderDirection, setOrderDirection] = useState<OrderDirection>('desc');
+  const [orderBy] = useState<SortField>('createdAt');
+  const [orderDirection] = useState<OrderDirection>('desc');
   const [statusFilterState, setStatusFilterState] = useState<OrderStatus | 'all'>(statusFilter);
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'wholesale' | 'retail'>('all');
   const [dateRange, setDateRange] = useState<{
@@ -144,19 +142,12 @@ const OrdersList: React.FC<OrdersListProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilterState, dateRange, orderBy, orderDirection]);
+  }, [searchTerm, statusFilterState, dateRange, orderBy, orderDirection, orderTypeFilter]);
   
   // Initial fetch and when dependencies change
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
-  
-  // Handle sort
-  const handleRequestSort = (property: SortField) => {
-    const isAsc = orderBy === property && orderDirection === 'asc';
-    setOrderDirection(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
-  };
   
   // Handle pagination
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -189,20 +180,7 @@ const OrdersList: React.FC<OrdersListProps> = ({
     setPage(0);
   };
   
-  // Handle date range change
-  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDateRange(prev => ({
-      ...prev,
-      start: event.target.value ? new Date(event.target.value) : null
-    }));
-  };
-
-  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDateRange(prev => ({
-      ...prev,
-      end: event.target.value ? new Date(event.target.value) : null
-    }));
-  };
+  // Date range changes are handled directly in the date picker
   
   // Reset filters
   const resetFilters = () => {

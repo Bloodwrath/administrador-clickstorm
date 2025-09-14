@@ -9,7 +9,6 @@ import {
   Grid,
   Button,
   InputAdornment,
-  IconButton,
   Tooltip
 } from '@mui/material';
 import { 
@@ -19,7 +18,7 @@ import {
   Receipt as ReceiptIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
-import { Order, PaymentMethod, PaymentStatus } from '../../types/order';
+import { Order, PaymentMethod } from '../../types/order';
 
 export interface OrderSummaryProps {
   order: Partial<Order>;

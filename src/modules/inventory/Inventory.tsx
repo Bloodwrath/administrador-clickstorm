@@ -753,10 +753,7 @@ const ProductFormWrapper = () => {
       const now = new Date().toISOString();
       
       // Prepare product data for Firestore (Product type)
-      // Get price information from precios array
-      const precioMenudeo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'menudeo')?.precio || 0;
-      const precioMayoreo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'mayoreo')?.precio || 0;
-      const cantidadMayoreo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'mayoreo')?.cantidadMinima || 0;
+      // Price information is processed when needed
       
       // Create base product data with all required fields
       const baseProductData = {

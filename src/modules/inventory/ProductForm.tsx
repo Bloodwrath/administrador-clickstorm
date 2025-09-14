@@ -18,10 +18,7 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 // Import types
-import { Producto, PrecioCantidad, PaqueteItem, Dimensiones } from '../../types/inventory';
-
-// Define local types
-type ItemPaquete = PaqueteItem;
+import { Producto, PrecioCantidad, Dimensiones } from '../../types/inventory';
 
 // Form data type that extends Producto with form-specific fields
 export interface ProductoFormData extends Omit<Producto, 'fechaCreacion' | 'fechaActualizacion' | 'historialPrecios' | 'etiquetas' | 'imagenes'> {
@@ -76,7 +73,6 @@ export interface ProductFormProps {
 const ProductForm: React.FC<ProductFormProps> = ({ 
   onSubmit, 
   isEdit, 
-  productId, 
   initialData = {} 
 }) => {
   // Hooks
@@ -88,8 +84,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const { 
     register, 
     handleSubmit, 
-    formState: { errors, isSubmitting },
-    watch
+    formState: { errors, isSubmitting }
   } = useForm<ProductoFormData>({
     defaultValues: {
       ...defaultValues,
@@ -113,7 +108,6 @@ const ProductForm: React.FC<ProductFormProps> = ({
     },
   });
 
-  const tipoProducto = watch('tipo');
   const isFormSubmitting = isSubmitting || isLoading;
 
   const onSubmitForm = async (formData: ProductoFormData) => {

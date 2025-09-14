@@ -30,9 +30,9 @@ import {
   Cancel as CancelIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-import { doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { Order, OrderStatus, formatCurrency } from '../../types/order';
+import { Order, OrderStatus } from '../../types/order';
 import OrderItemsList from './OrderItemsList';
 import OrderSummary from './OrderSummary';
 import { generateOrderPdf } from '../../utils/pdfGenerator';
@@ -186,21 +186,11 @@ const OrderDetailsView: React.FC = () => {
     if (!order) return;
     
     const pdfDoc = generateOrderPdf(order);
-    const pdfUrl = pdfDoc.output('bloburl');
-    window.open(pdfUrl as any, '_blank');
+    pdfDoc.output('bloburl');
   };
 
-  // Handle order update
-  const handleOrderUpdate = (updatedOrder: Order) => {
-    setOrder(updatedOrder);
-    setEditing(false);
-    
-    setSnackbar({
-      open: true,
-      message: 'Pedido actualizado correctamente',
-      severity: 'success'
-    });
-  };
+  // Order update handler is not used in this component
+  // as the order updates are handled by the parent component
 
   // Handle snackbar close
   const handleCloseSnackbar = () => {

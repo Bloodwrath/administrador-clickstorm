@@ -16,7 +16,6 @@ import {
   TablePagination,
   useTheme,
   TablePaginationProps,
-  Divider,
   Tooltip,
   Chip
 } from '@mui/material';
