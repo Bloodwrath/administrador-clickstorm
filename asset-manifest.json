@@ -1,19 +1,19 @@
 {
   "files": {
     "main.css": "/administrador-clickstorm/static/css/main.2059629f.css",
-    "main.js": "/administrador-clickstorm/static/js/main.84533cbd.js",
+    "main.js": "/administrador-clickstorm/static/js/main.bede9375.js",
     "static/js/239.e37fafc5.chunk.js": "/administrador-clickstorm/static/js/239.e37fafc5.chunk.js",
     "static/js/977.f514637e.chunk.js": "/administrador-clickstorm/static/js/977.f514637e.chunk.js",
     "static/js/455.75c4b922.chunk.js": "/administrador-clickstorm/static/js/455.75c4b922.chunk.js",
     "index.html": "/administrador-clickstorm/index.html",
     "main.2059629f.css.map": "/administrador-clickstorm/static/css/main.2059629f.css.map",
-    "main.84533cbd.js.map": "/administrador-clickstorm/static/js/main.84533cbd.js.map",
+    "main.bede9375.js.map": "/administrador-clickstorm/static/js/main.bede9375.js.map",
     "239.e37fafc5.chunk.js.map": "/administrador-clickstorm/static/js/239.e37fafc5.chunk.js.map",
     "977.f514637e.chunk.js.map": "/administrador-clickstorm/static/js/977.f514637e.chunk.js.map",
     "455.75c4b922.chunk.js.map": "/administrador-clickstorm/static/js/455.75c4b922.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.2059629f.css",
-    "static/js/main.84533cbd.js"
+    "static/js/main.bede9375.js"
   ]
 }
