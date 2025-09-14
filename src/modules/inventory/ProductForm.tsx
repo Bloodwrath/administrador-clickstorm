@@ -22,7 +22,8 @@ import {
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
+import { useAuth } from '../../context/AuthContext';
 
 // Import types
 import { Producto, TipoProducto, PrecioCantidad, ImagenProducto, PaqueteItem, Dimensiones } from '../../types/inventory';
@@ -44,7 +45,9 @@ interface Supplier {
 export interface ProductoFormData extends Omit<Producto, 'fechaCreacion' | 'fechaActualizacion' | 'historialPrecios' | 'etiquetas' | 'imagenes'> {
   imagenes: (ImagenProducto | File)[];
   nuevaImagen?: File;
+  // Store etiquetas as a comma-separated string in the form
   etiquetas: string;
+  // Add other form-specific fields that might not be in the Producto type
   precios: PrecioCantidad[];
   dimensiones: Dimensiones;
   // Additional fields for form compatibility
@@ -97,13 +100,18 @@ export interface ProductFormProps {
 const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, initialData = {} }) => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const { currentUser } = useAuth();
+  
+  if (!currentUser) {
+    throw new Error('No user is currently logged in');
+  }
   
   const { 
     register, 
     handleSubmit, 
     setValue, 
     watch, 
-    formState: { errors }
+    formState: { errors, isSubmitting }
   } = useForm<ProductoFormData>({
     defaultValues: {
       ...defaultValues,
@@ -136,6 +144,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
   const [suppliers] = useState<Supplier[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const isFormSubmitting = isSubmitting || isLoading;
   
   // Load suppliers on mount
   useEffect(() => {
@@ -324,48 +333,148 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     try {
       setIsLoading(true);
       
+      // Get current date for timestamps
+      const now = new Date();
+      
       // Process form data before submission
+      const { 
+        stock = 0, 
+        stockMinimo = 0, 
+        stockMaximo = 0, 
+        costo = 0, 
+        costoProduccion = 0, 
+        activo = true,
+        precios = [],
+        etiquetas = '',
+        imagenes = [],
+        ...restFormData 
+      } = formData;
+      
+      // Process prices
+      const processedPrecios = (precios || [])
+        .filter(p => p && p.precio > 0)
+        .map(p => ({
+          cantidadMinima: p.cantidadMinima,
+          precio: p.precio,
+          tipo: p.tipo
+        }));
+      
+      // Process price history
+      const historialPrecios = [
+        ...((initialData as any).historialPrecios || []),
+        ...(precios && precios.length > 0 ? [{
+          fecha: now,
+          precio: precios[0].precio,
+          moneda: (formData as any).moneda || 'MXN',
+          motivo: 'Precio inicial'
+        }] : [])
+      ];
+      
+      // Process tags
+      const processedEtiquetas = etiquetas 
+        ? etiquetas.split(',').map(tag => tag.trim()).filter(Boolean)
+        : [];
+      
+      // Process images
+      const processedImagenes = imagenes
+        .filter((img): img is ImagenProducto => !(img instanceof File))
+        .map(img => ({
+          id: img.id,
+          nombre: img.nombre,
+          tipo: img.tipo,
+          datos: img.datos,
+          orden: img.orden,
+          esPrincipal: img.esPrincipal
+        }));
+      
+      // Create the final submission data
       const submitData: Producto = {
-        ...formData,
-        // Ensure required fields are set
-        stock: formData.stock || 0,
-        stockMinimo: formData.stockMinimo || 0,
-        stockMaximo: formData.stockMaximo || 0,
-        costo: formData.costo || 0,
-        costoProduccion: formData.costoProduccion || 0,
-        activo: formData.activo ?? true,
-        // Process prices
-        precios: (formData.precios || [])
-          .filter(p => p && p.precio > 0)
-          .map(p => ({
-            cantidadMinima: p.cantidadMinima,
-            precio: p.precio,
-            tipo: p.tipo
-          })),
-        // Process tags
-        etiquetas: formData.etiquetas ? 
-          formData.etiquetas.split(',').map(tag => tag.trim()) : 
-          [],
-        // Process images
-        imagenes: formData.imagenes
-          .filter((img): img is ImagenProducto => !(img instanceof File))
-          .map(img => ({
-            id: img.id,
-            nombre: img.nombre,
-            tipo: img.tipo,
-            datos: img.datos,
-            orden: img.orden,
-            esPrincipal: img.esPrincipal
-          })),
-        // Set timestamps
-        fechaActualizacion: new Date(),
-        ...(!isEdit && { 
-          fechaCreacion: new Date(),
-          creadoPor: 'current-user-id' // This should be replaced with the actual user ID
-        })
+        // Spread remaining form data
+        ...restFormData,
+        
+        // Set required fields with defaults
+        stock,
+        stockMinimo,
+        stockMaximo,
+        costo,
+        costoProduccion,
+        activo: activo ?? true,
+        
+        // Set processed arrays
+        precios: processedPrecios,
+        historialPrecios,
+        etiquetas: processedEtiquetas,
+        imagenes: processedImagenes,
+        
+        // Set audit fields
+        creadoPor: isEdit ? ((initialData as any).creadoPor || currentUser.uid) : currentUser.uid,
+        fechaCreacion: isEdit ? ((initialData as any).fechaCreacion || now) : now,
+        fechaActualizacion: now,
+        
+        // Ensure dimensiones is properly set
+        dimensiones: formData.dimensiones || {
+          ancho: 0,
+          alto: 0,
+          profundidad: 0,
+          unidad: 'cm'
+        },
+        
+        // Ensure itemsPaquete is set
+        itemsPaquete: formData.itemsPaquete || []
       };
 
-      await onSubmit(formData);
+      // Create a new object with only the fields that ProductoFormData expects
+      const formDataForSubmit: ProductoFormData = {
+        // Basic fields
+        nombre: submitData.nombre,
+        descripcion: submitData.descripcion || '',
+        categoriaId: submitData.categoriaId,
+        proveedorId: submitData.proveedorId,
+        tipo: submitData.tipo,
+        ubicacion: submitData.ubicacion || '',
+        material: submitData.material || '',
+        moneda: submitData.moneda || 'MXN',
+        notas: submitData.notas || '',
+        
+        // Convert arrays and special fields
+        etiquetas: processedEtiquetas.join(', '),
+        precios: submitData.precios,
+        dimensiones: submitData.dimensiones,
+        itemsPaquete: submitData.itemsPaquete || [],
+        
+        // Stock and pricing
+        stock: submitData.stock,
+        stockMinimo: submitData.stockMinimo,
+        stockMaximo: submitData.stockMaximo,
+        costo: submitData.costo,
+        costoProduccion: submitData.costoProduccion,
+        
+        // Images
+        imagenes: submitData.imagenes,
+        
+        // Barcode and SKU
+        codigoBarras: submitData.codigoBarras || '',
+        sku: submitData.sku || '',
+        
+        // Status
+        activo: submitData.activo,
+        
+        // Audit fields
+        creadoPor: submitData.creadoPor,
+        
+        // Image status
+        hasImage: submitData.imagenes && submitData.imagenes.length > 0,
+        
+        // Optional pricing fields
+        precioMenudeo: submitData.precios.find(p => p.tipo === 'menudeo')?.precio,
+        precioMayoreo: submitData.precios.find(p => p.tipo === 'mayoreo')?.precio,
+        cantidadMayoreo: submitData.precios.find(p => p.tipo === 'mayoreo')?.cantidadMinima,
+        minStock: submitData.stockMinimo,
+        precio: submitData.precios[0]?.precio,
+        supplierName: submitData.proveedorId // This should be mapped from supplierId to name if needed
+      };
+      
+      await onSubmit(formDataForSubmit);
       enqueueSnackbar(`Producto ${isEdit ? 'actualizado' : 'creado'} correctamente`, { 
         variant: 'success' 
       });
@@ -528,8 +637,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
         <Button 
           type="submit" 
           variant="contained" 
-          disabled={isSubmitting || isLoading}
-          startIcon={isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+          disabled={isFormSubmitting}
+          startIcon={isFormSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
         >
           {isEdit ? 'Guardar Cambios' : 'Crear Producto'}
         </Button>

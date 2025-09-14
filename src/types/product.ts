@@ -9,16 +9,24 @@ export interface Product {
   cantidadMayoreo: number;
   stock: number;
   stockMinimo: number;
+  costo?: number;
+  costoProduccion?: number;
   proveedor?: string;
   ubicacion?: string;
-  fechaActualizacion: Date | string;
+  fechaCreacion?: string | Date;
+  fechaActualizacion: string | Date;
   activo: boolean;
   imagenes?: string[];
   notas?: string;
+  etiquetas?: string[];
+  unidadMedida?: string;
+  moneda?: string;
 }
 
 export interface ProductFormData extends Omit<Product, 'id' | 'fechaActualizacion' | 'activo'> {
   id?: string;
+  activo?: boolean;
+  // Add any other form-specific fields here
 }
 
 export const initialProductState: ProductFormData = {

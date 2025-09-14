@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useContext } from 'react';
+import { useForm } from 'react-hook-form';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
   Box, 
@@ -53,7 +54,7 @@ import {
 } from '@mui/icons-material';
 // Firebase
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db } from '../../services/firebase';
 
 // Context
 import { useAuth } from '../../context/AuthContext';
@@ -80,8 +81,8 @@ import { getLargeText } from '../../services/textStorage';
 
 // Types
 import { Producto, ImagenProducto, PrecioCantidad } from '../../types/inventory';
-import type { Product as ProductType } from '../../types/product';
-import ProductForm from './ProductForm';
+import { Product } from '../../types/product';
+import ProductForm, { ProductoFormData } from './ProductForm';
 
 type SupplierType = Supplier;
 
@@ -635,7 +636,7 @@ const ProductFormWrapper = () => {
   const { showMessage } = useSnackbar();
   const { currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [initialData, setInitialData] = useState<Partial<Producto>>({});
+  const [initialData, setInitialData] = useState<Partial<ProductoFormData>>({});
   const [open, setOpen] = useState(true);
   const [formData, setFormData] = useState<Partial<Producto>>({});
   
@@ -664,47 +665,24 @@ const ProductFormWrapper = () => {
       setIsLoading(true);
       try {
         const product = await getProductById(id) as FirestoreProduct;
-        if (product) {
-          // Map Firestore Product to Producto type with proper type safety
-          const productData: Partial<Producto> = {
-            ...product,
-            codigoBarras: (product as FirestoreProduct).codigo || product.codigoBarras || '',
-            precios: (product as FirestoreProduct).precios || [
-              { 
-                cantidadMinima: 1, 
-                precio: (product as FirestoreProduct).precioMenudeo || 0, 
-                tipo: 'menudeo' as const
-              },
-              { 
-                cantidadMinima: (product as FirestoreProduct).cantidadMayoreo || 10, 
-                precio: (product as FirestoreProduct).precioMayoreo || 0, 
-                tipo: 'mayoreo' as const
-              }
-            ],
-            fechaCreacion: (product as FirestoreProduct).fechaCreacion?.toDate?.() || new Date(),
-            fechaActualizacion: (product as FirestoreProduct).fechaActualizacion?.toDate?.() || new Date(),
-            // Map images to the correct format, ensuring datos is a string (URL)
-            imagenes: Array.isArray(product.imagenes) 
-              ? product.imagenes.map((img: any, imgIndex: number) => ({
-                  id: `img-${imgIndex}`,
-                  nombre: `product-${product.id}-${imgIndex}`,
-                  tipo: 'imagen' as const,
-                  datos: typeof img === 'string' ? img : (img.url || ''), // Ensure datos is a string
-                  orden: imgIndex,
-                  esPrincipal: imgIndex === 0
-                } as ImagenProducto))
-              : [],
-            stock: Number(product.stock) || 0,
-            stockMinimo: Number(product.stockMinimo) || 0,
-            stockMaximo: Number(product.stockMaximo) || 0,
-            costo: Number(product.costo) || 0,
-            costoProduccion: Number(product.costoProduccion) || 0,
-            moneda: product.moneda || 'MXN',
-            activo: product.activo !== undefined ? Boolean(product.activo) : true
-          };
-          
-          setInitialData(productData);
-        }
+        if (!product) return;
+
+        // Create a basic product data object with required fields
+        const productData: any = {
+          ...product,
+          codigoBarras: product.codigo || product.codigoBarras || '',
+          etiquetas: Array.isArray(product.etiquetas) ? product.etiquetas.join(', ') : '',
+          stock: Number(product.stock) || 0,
+          stockMinimo: Number(product.stockMinimo) || 0,
+          stockMaximo: Number(product.stockMaximo) || 0,
+          costo: Number(product.costo) || 0,
+          costoProduccion: Number(product.costoProduccion) || 0,
+          moneda: product.moneda || 'MXN',
+          activo: product.activo !== undefined ? Boolean(product.activo) : true
+        };
+
+        // Set initial data
+        setInitialData(productData as ProductoFormData);
       } catch (error) {
         console.error('Error loading product:', error);
         showMessage('Error al cargar el producto', 'error');
@@ -720,55 +698,173 @@ const ProductFormWrapper = () => {
   const addProduct = async (productData: Partial<Producto>): Promise<Partial<Producto> & { id: string }> => {
     if (!currentUser) throw new Error('No user logged in');
     
-    // Ensure required fields are present
-    const newProduct: Omit<Partial<Producto>, 'id'> & { 
-      creadoPor: string; 
-      fechaCreacion: any; 
-      fechaActualizacion: any;
-      activo: boolean;
-    } = {
-      ...productData,
-      creadoPor: currentUser.uid,
-      fechaCreacion: serverTimestamp(),
-      fechaActualizacion: serverTimestamp(),
+    const now = new Date().toISOString();
+    
+    // Ensure all required fields are present with defaults
+    // Create base product with all required fields
+    const baseProduct = {
+      // Default values for required fields
+      codigoBarras: '',
+      nombre: '',
+      descripcion: '',
+      categoriaId: '',
+      categoria: '',
+      proveedorId: '',
+      proveedor: '',
+      tipo: 'venta', // Default to 'venta' as it's a valid TipoProducto value
+      etiquetas: [],
+      ubicacion: '',
+      dimensiones: { 
+        ancho: 0, 
+        alto: 0, 
+        profundidad: 0, 
+        unidad: 'cm' as const 
+      },
+      material: '',
+      stock: 0,
+      stockMinimo: 0,
+      stockMaximo: 0,
+      precios: [],
+      moneda: 'MXN',
+      costo: 0,
+      costoProduccion: 0,
+      historialPrecios: (productData.historialPrecios || []).map(ph => ({
+        ...ph,
+        fecha: ph.fecha && !(ph.fecha instanceof Date) ? new Date(ph.fecha) : (ph.fecha || new Date())
+      })),
+      itemsPaquete: [],
+      imagenes: [],
       activo: true,
+      creadoPor: currentUser.uid,
+      fechaActualizacion: now,
+      notas: '',
+    };
+    
+    // Ensure tipo is a valid TipoProducto value
+    const validTipo = ['venta', 'produccion', 'paquete'].includes(productData.tipo as string) 
+      ? productData.tipo as 'venta' | 'produccion' | 'paquete'
+      : 'venta';
+
+    // Merge with productData, ensuring our defaults take precedence
+    const newProduct = {
+      ...productData,
+      ...baseProduct,
+      // Ensure tipo is valid
+      tipo: validTipo,
+      // Ensure required fields are set
+      creadoPor: currentUser.uid,
+      fechaCreacion: productData.fechaCreacion || now,
+      fechaActualizacion: now,
+      activo: productData.activo !== undefined ? productData.activo : true,
       // Ensure arrays are properly initialized
+      etiquetas: productData.etiquetas || [],
       precios: productData.precios || [],
-      imagenes: productData.imagenes || []
+      itemsPaquete: productData.itemsPaquete || [],
+      imagenes: productData.imagenes || [],
+      historialPrecios: (productData.historialPrecios || []).map(ph => ({
+        ...ph,
+        fecha: ph.fecha && !(ph.fecha instanceof Date) ? new Date(ph.fecha) : (ph.fecha || new Date())
+      }))
     };
     
     const docRef = await addDoc(collection(db, 'productos'), newProduct);
     return { id: docRef.id, ...newProduct };
   };
 
-  const handleSubmitForm = async (data: Partial<Producto>) => {
+  const handleSubmitForm = async (formData: any) => {
     if (!currentUser) return;
 
     try {
       setIsLoading(true);
       
-      // Prepare product data
-      const productData: Partial<Producto> = {
-        ...data,
-        nombre: data.nombre || '',
-        descripcion: data.descripcion || '',
-        codigoBarras: data.codigoBarras || '',
-        categoria: data.categoria || '',
-        unidadMedida: data.unidadMedida || 'unidad',
-        precios: data.precios || [
-          { cantidadMinima: 1, precio: 0, tipo: 'menudeo' as const }
-        ],
-        stock: data.stock || 0,
-        stockMinimo: data.stockMinimo || 0,
-        stockMaximo: data.stockMaximo || 0,
-        costo: data.costo || 0,
-        costoProduccion: data.costoProduccion || 0,
-        moneda: data.moneda || 'MXN',
-        // Handle images
-        imagenes: data.imagenes?.map(img => 
-          typeof img === 'string' ? img : img.datos
-        )
+      // Convert etiquetas from string to string[] if needed
+      const etiquetas = formData.etiquetas 
+        ? typeof formData.etiquetas === 'string' 
+          ? formData.etiquetas.split(',').map((e: string) => e.trim()).filter(Boolean)
+          : Array.isArray(formData.etiquetas) 
+            ? formData.etiquetas
+            : []
+        : [];
+
+      // Get current date for timestamps
+      const now = new Date().toISOString();
+      
+      // Prepare product data for Firestore (Product type)
+      const precioMenudeo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'menudeo')?.precio || 0;
+      const precioMayoreo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'mayoreo')?.precio || 0;
+      const cantidadMayoreo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'mayoreo')?.cantidadMinima || 0;
+      
+      // Create base product data with all required fields
+      const baseProductData = {
+        // Identificación básica
+        codigoBarras: formData.codigoBarras || '',
+        sku: formData.sku || '',
+        nombre: formData.nombre || '',
+        descripcion: formData.descripcion || '',
+        
+        // Categorización
+        categoriaId: formData.categoriaId || '',
+        categoria: formData.categoria || '',
+        proveedorId: formData.proveedorId || '',
+        proveedor: formData.proveedor || '',
+        tipo: formData.tipo || 'producto',
+        etiquetas: etiquetas,
+        ubicacion: formData.ubicacion || '',
+        
+        // Especificaciones
+        dimensiones: formData.dimensiones || { ancho: 0, alto: 0, profundidad: 0, unidad: 'cm' },
+        material: formData.material || '',
+        
+        // Inventario
+        stock: formData.stock || 0,
+        stockMinimo: formData.stockMinimo || 0,
+        stockMaximo: formData.stockMaximo || 0,
+        
+        // Precios y costos
+        precios: formData.precios || [],
+        moneda: formData.moneda || 'MXN',
+        costo: formData.costo || 0,
+        costoProduccion: formData.costoProduccion || 0,
+        historialPrecios: formData.historialPrecios || [],
+        
+        // Solo para paquetes
+        itemsPaquete: formData.itemsPaquete || [],
+        
+        // Imágenes
+        imagenes: formData.imagenes?.map((img: string | ImagenProducto | File) => 
+          typeof img === 'string' ? img : 
+          'datos' in img ? (img as ImagenProducto).datos : 
+          ''
+        ).filter(Boolean) || [],
+        
+        // Estado
+        activo: formData.activo !== undefined ? formData.activo : true,
+        
+        // Auditoría
+        creadoPor: currentUser.uid,
+        fechaActualizacion: now,
+        
+        // Notas adicionales
+        notas: formData.notas || ''
       };
+      
+      // Only include fechaCreacion for new products
+      const productData = isEdit 
+        ? { ...baseProductData }
+        : { 
+            ...baseProductData, 
+            fechaCreacion: now,
+            // Initialize historialPrecios with current prices for new products
+            historialPrecios: [
+              ...(baseProductData.historialPrecios || []),
+              ...baseProductData.precios.map((p: PrecioCantidad) => ({
+                fecha: now,
+                precio: p.precio,
+                moneda: baseProductData.moneda,
+                motivo: 'Precio inicial'
+              }))
+            ]
+          };
 
       if (isEdit && id) {
         // Update existing product
@@ -823,12 +919,12 @@ const SupplierList: React.FC = () => {
   const navigate = useNavigate();
   const { showMessage } = useSnackbar();
   // Use the ApiSupplier type from the services
-  const [suppliers, setSuppliers] = useState<ApiSupplier[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   useEffect(() => {
     const unsub = listenSuppliers((suppliers) => {
       // Ensure we have valid supplier data before updating state
-      const validSuppliers = suppliers.filter((s): s is ApiSupplier => Boolean(s?.id));
+      const validSuppliers = suppliers.filter((s): s is Supplier => Boolean(s?.id));
       setSuppliers(validSuppliers);
     });
     return () => unsub();
