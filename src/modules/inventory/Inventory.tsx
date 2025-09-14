@@ -1,6 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { ProductoFormData } from './ProductForm';
+import { PrecioCantidad, ImagenProducto } from '../../types/inventory';
 import { 
   Box, 
   Typography, 
@@ -29,10 +31,8 @@ import { useSnackbar } from '../../context/SnackbarContext';
 
 // Services
 import { 
-  Product as ProductServiceType, 
   listenProducts, 
   deleteProduct, 
-  createProduct, 
   updateProduct, 
   getProductById
 } from '../../services/products';
@@ -47,11 +47,8 @@ import {
 import { getLargeText } from '../../services/textStorage';
 
 // Types
-import { Producto, ImagenProducto, PrecioCantidad } from '../../types/inventory';
-import { Product } from '../../types/product';
-import ProductForm, { ProductoFormData } from './ProductForm';
-
-type SupplierType = Supplier;
+import { Producto } from '../../types/inventory';
+import ProductForm from './ProductForm';
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -140,7 +137,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
                   orden: img.orden !== undefined ? img.orden : index,
                   esPrincipal: img.esPrincipal || index === 0
                 }))
-            : []) as ImagenProducto[],
+            : []) as any[], // Temporarily using any[] to avoid type issues
           activo: product.activo !== false,
           fechaCreacion: getSafeDate(product.fechaCreacion),
           fechaActualizacion: getSafeDate(product.fechaActualizacion || now),
@@ -604,8 +601,7 @@ const ProductFormWrapper = () => {
   const { currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [initialData, setInitialData] = useState<Partial<ProductoFormData>>({});
-  const [open, setOpen] = useState(true);
-  const [formData, setFormData] = useState<Partial<Producto>>({});
+  const [, setOpen] = useState(true);
   
   // Define the Firestore product type with all possible fields
   type FirestoreProduct = Partial<Producto> & {
@@ -757,6 +753,7 @@ const ProductFormWrapper = () => {
       const now = new Date().toISOString();
       
       // Prepare product data for Firestore (Product type)
+      // Get price information from precios array
       const precioMenudeo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'menudeo')?.precio || 0;
       const precioMayoreo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'mayoreo')?.precio || 0;
       const cantidadMayoreo = formData.precios?.find((p: PrecioCantidad) => p.tipo === 'mayoreo')?.cantidadMinima || 0;
