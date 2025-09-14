@@ -3,8 +3,6 @@ import {
   Button, 
   TextField, 
   FormControl,
-  IconButton,
-  Checkbox,
   InputLabel, 
   Select, 
   MenuItem, 
@@ -12,17 +10,14 @@ import {
   CircularProgress,
   FormControlLabel,
   Grid,
-  InputAdornment
+  InputAdornment,
+  Checkbox
 } from '@mui/material';
-import { Delete as DeleteIcon } from '@mui/icons-material';
-import { 
-  Add as AddIcon, 
-  Save as SaveIcon
-} from '@mui/icons-material';
+import { Save as SaveIcon } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 // Import types
@@ -141,9 +136,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
   const cantidadMayoreo = watch('cantidadMayoreo');
   const itemsPaquete = watch('itemsPaquete') || [];
   
-  const [suppliers] = useState<Supplier[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const isFormSubmitting = isSubmitting || isLoading;
   
   // Load suppliers on mount
@@ -160,7 +155,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ onSubmit, isEdit, productId, 
     };
     
     loadSuppliers();
-  }, [enqueueSnackbar]);
+  }, [enqueueSnackbar, setSuppliers]);
 
   // Load suppliers and product data
   useEffect(() => {

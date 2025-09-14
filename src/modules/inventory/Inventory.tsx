@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useContext } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -6,55 +6,22 @@ import {
   Typography, 
   Button, 
   TextField, 
-  InputAdornment, 
-  IconButton, 
-  Paper, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  TablePagination, 
   FormControl, 
   InputLabel, 
   Select, 
-  MenuItem, 
-  SelectChangeEvent,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  CardMedia,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-  Switch,
+  MenuItem,
+  Container,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  DialogContentText,
-  CircularProgress,
-  LinearProgress,
-  Divider,
-  Chip,
-  Avatar,
-  Tooltip,
-  Badge,
-  useTheme,
-  useMediaQuery,
-  Container
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import {
-  Add as AddIcon,
-  Save as SaveIcon,
-  Image as ImageIcon
-} from '@mui/icons-material';
-// Firebase
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Add as AddIcon, Save as SaveIcon, Image as ImageIcon } from '@mui/icons-material';
 import { db } from '../../services/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 
 // Context
 import { useAuth } from '../../context/AuthContext';
@@ -928,7 +895,7 @@ const SupplierList: React.FC = () => {
       setSuppliers(validSuppliers);
     });
     return () => unsub();
-  }, []);
+  }, [setSuppliers]);
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -985,10 +952,23 @@ const SupplierForm: React.FC = () => {
 
   useEffect(() => {
     if (!isEdit) return;
-    getSupplierById(id!).then((s) => {
-      if (s) Object.entries(s).forEach(([k, v]) => setValue(k as any, v as any));
-    });
-  }, [id, isEdit, setValue]);
+    
+    const loadSupplier = async () => {
+      try {
+        const supplier = await getSupplierById(id!);
+        if (supplier) {
+          Object.entries(supplier).forEach(([key, value]) => {
+            setValue(key as keyof Supplier, value as any);
+          });
+        }
+      } catch (error) {
+        console.error('Error loading supplier:', error);
+        showMessage('Error al cargar el proveedor', 'error');
+      }
+    };
+    
+    loadSupplier();
+  }, [id, isEdit, setValue, showMessage]);
 
   const onSubmit = async (data: Supplier) => {
     try {
