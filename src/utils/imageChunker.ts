@@ -18,10 +18,11 @@ export interface ImageChunk {
  * @param mimeType Tipo MIME de la imagen (ej: 'image/jpeg')
  * @returns Array de objetos ImageChunk
  */
+// Tamaño de chunk reducido a 500KB para estar muy por debajo del límite de Firestore (1MB)
 export const splitImageIntoChunks = (
   base64Data: string,
   mimeType: string,
-  chunkSize: number = 1024 * 1024 // 1MB por defecto
+  chunkSize: number = 512 * 1024 // 500KB para estar seguros
 ): ImageChunk[] => {
   const chunks: ImageChunk[] = [];
   const imageId = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -118,7 +119,7 @@ export const fileToBase64 = (file: File): Promise<{ base64: string; mimeType: st
  */
 export const processImageFile = async (
   file: File,
-  chunkSize: number = 1024 * 1024 // 1MB por defecto
+  chunkSize: number = 512 * 1024 // 500KB para estar seguros
 ): Promise<{ chunks: ImageChunk[]; mimeType: string }> => {
   try {
     const { base64, mimeType } = await fileToBase64(file);

@@ -3,6 +3,8 @@ import {
   Button, 
   TextField, 
   FormControl,
+  Checkbox,
+  FormControlLabel,
   InputLabel, 
   Select, 
   MenuItem, 
@@ -15,6 +17,7 @@ import { Save as SaveIcon, CameraAlt as CameraIcon } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { addAccountingEntry } from '../../services/accounting';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -33,7 +36,9 @@ export interface ProductoFormData extends Omit<Producto, 'historialPrecios' | 'e
   minStock?: number;
   precio?: number;
   sku?: string;
-  costoUnitario?: number;
+  costoTotal?: number; // Changed from costoUnitario to costoTotal
+  registrarComoCompra: boolean; // New field to track if should register as purchase
+  costoUnitarioCalculado?: number; // Read-only calculated field
 }
 
 // Default values for new product
@@ -44,26 +49,29 @@ const defaultValues: ProductoFormData = {
   categoriaId: '',
   categoria: '',
   proveedorId: '',
+  registrarComoCompra: true, // Default to true for new products
   proveedor: '',
   tipo: 'venta',
   etiquetas: '',
+  precios: [
+    { cantidadMinima: 1, precio: 0, tipo: 'menudeo' },
+    { cantidadMinima: 10, precio: 0, tipo: 'mayoreo' }
+  ],
   dimensiones: {
     ancho: 0,
     alto: 0,
-    unidad: 'cm'
+    profundidad: 0,
+    unidad: 'cm' as const
   },
   material: '',
   stock: 0,
   stockMinimo: 0,
   stockMaximo: 0,
-  precios: [
-    { cantidadMinima: 1, precio: 0, tipo: 'menudeo' },
-    { cantidadMinima: 10, precio: 0, tipo: 'mayoreo' }
-  ],
   moneda: 'MXN',
   costo: 0,
   costoProduccion: 0,
-  costoUnitario: 0,
+  costoTotal: 0,
+  costoUnitarioCalculado: 0,
   imagenes: [],
   activo: true,
   creadoPor: '',
@@ -102,37 +110,37 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setValue,
     formState: { errors, isSubmitting }
   } = useForm<ProductoFormData>({
-    defaultValues: {
-      ...defaultValues,
+    defaultValues: isEdit ? { 
+      ...defaultValues, 
       ...initialData,
-      stockMinimo: initialData.stockMinimo ?? initialData.minStock ?? 0,
-      precioMenudeo: initialData.precioMenudeo ?? initialData.precios?.[0]?.precio ?? 0,
-      precioMayoreo: initialData.precioMayoreo ?? initialData.precios?.[1]?.precio ?? 0,
-      cantidadMinimaMayoreo: initialData.cantidadMinimaMayoreo ?? initialData.precios?.[1]?.cantidadMinima ?? 10,
-      costoUnitario: initialData.costoUnitario ?? 0,
       precios: initialData.precios ?? [
         { 
           cantidadMinima: 1, 
           precio: initialData.precioMenudeo ?? 0, 
-          tipo: 'menudeo' 
+          tipo: 'menudeo' as const
         },
         { 
           cantidadMinima: initialData.cantidadMinimaMayoreo ?? 10, 
           precio: initialData.precioMayoreo ?? 0, 
-          tipo: 'mayoreo' 
+          tipo: 'mayoreo' as const
         }
       ]
-    }
+    } : defaultValues 
   });
 
   // Watch for changes in form fields
-  const watchCosto = watch('costo');
+  const watchCostoTotal = watch('costoTotal');
   const watchStock = watch('stock');
-  const watchPrecioMenudeo = watch('precioMenudeo');
-  const watchPrecioMayoreo = watch('precioMayoreo');
-  const watchCantidadMinimaMayoreo = watch('cantidadMinimaMayoreo');
-  const watchPrecios = watch('precios');
-  const watchImagenes = watch('imagenes');
+  
+  // Calculate unit cost whenever total cost or stock changes
+  useEffect(() => {
+    const costoTotal = typeof watchCostoTotal === 'number' ? watchCostoTotal : parseFloat(watchCostoTotal || '0');
+    const stock = typeof watchStock === 'number' ? watchStock : parseFloat(watchStock || '1');
+    const costoUnitario = stock > 0 ? costoTotal / stock : 0;
+    
+    setValue('costoUnitarioCalculado', parseFloat(costoUnitario.toFixed(2)), { shouldValidate: true });
+    setValue('costo', costoTotal, { shouldValidate: true }); // For backward compatibility
+  }, [watchCostoTotal, watchStock, setValue]);
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,6 +161,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
     setIsUploading(true);
     
+    // Get current images
+    const currentImages = watch('imagenes') || [];
+    
     // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -165,11 +176,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
         nombre: file.name,
         tipo: file.type,
         datos: imageUrl.split(',')[1], // Remove data:image/...;base64,
-        orden: watchImagenes?.length || 0,
-        esPrincipal: watchImagenes?.length === 0 // First image is principal
+        orden: currentImages.length,
+        esPrincipal: currentImages.length === 0 // First image is principal
       };
       
-      setValue('imagenes', [...(watchImagenes || []), newImage], { shouldValidate: true });
+      setValue('imagenes', [...currentImages, newImage], { shouldValidate: true });
       setIsUploading(false);
     };
     
@@ -182,19 +193,13 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setValue('imagenes', [], { shouldValidate: true });
   };
 
-  // Calculate costo unitario when costo or stock changes
-  useEffect(() => {
-    const costo = typeof watchCosto === 'string' ? parseFloat(watchCosto) || 0 : watchCosto || 0;
-    const stock = typeof watchStock === 'string' ? parseFloat(watchStock) || 1 : watchStock || 1; // Default to 1 to avoid division by zero
-    const costoUnitario = stock > 0 ? (costo / stock) : 0;
-    
-    // Only update if the calculated value is different to avoid infinite loops
-    const currentCostoUnitario = parseFloat(String(watch('costoUnitario') || '0'));
-    if (Math.abs(costoUnitario - currentCostoUnitario) > 0.001) {
-      setValue('costoUnitario', parseFloat(costoUnitario.toFixed(4)), { shouldValidate: true });
-    }
-  }, [watchCosto, watchStock, setValue, watch]);
 
+  // Watch for price and quantity changes
+  const watchPrecioMenudeo = watch('precioMenudeo');
+  const watchPrecioMayoreo = watch('precioMayoreo');
+  const watchCantidadMinimaMayoreo = watch('cantidadMinimaMayoreo');
+  const watchPrecios = watch('precios');
+  
   // Update precios array when prices or quantities change
   useEffect(() => {
     const newPrecioMenudeo = typeof watchPrecioMenudeo === 'string' ? parseFloat(watchPrecioMenudeo) : watchPrecioMenudeo || 0;
@@ -238,33 +243,63 @@ const ProductForm: React.FC<ProductFormProps> = ({
       return;
     }
 
-    // Ensure all required fields are present
-    const productData: ProductoFormData = {
-      ...formData,
-      // Ensure precios array is properly formatted
-      precios: [
-        {
-          cantidadMinima: 1,
-          precio: parseFloat(formData.precioMenudeo?.toString() || '0'),
-          tipo: 'menudeo' as const
-        },
-        {
-          cantidadMinima: parseInt(formData.cantidadMinimaMayoreo?.toString() || '10'),
-          precio: parseFloat(formData.precioMayoreo?.toString() || '0'),
-          tipo: 'mayoreo' as const
-        }
-      ],
-      // Ensure costoUnitario is calculated
-      costoUnitario: formData.costoUnitario || 
-        (formData.stock > 0 ? formData.costo / formData.stock : 0),
-      // Add createdBy/updatedBy info
-      creadoPor: currentUser.uid,
-      fechaActualizacion: new Date().toISOString()
-    };
-
     setIsLoading(true);
-    
+
     try {
+      // Calculate unit cost based on total cost and quantity
+      const costoTotal = parseFloat(formData.costoTotal?.toString() || '0');
+      const cantidad = formData.stock || 0;
+      const costoUnitario = cantidad > 0 ? costoTotal / cantidad : 0;
+
+      // Prepare product data
+      const productData: ProductoFormData = {
+        ...formData,
+        // Ensure precios array is properly formatted
+        precios: [
+          {
+            cantidadMinima: 1,
+            precio: parseFloat(formData.precioMenudeo?.toString() || '0'),
+            tipo: 'menudeo' as const
+          },
+          {
+            cantidadMinima: parseInt(formData.cantidadMinimaMayoreo?.toString() || '10'),
+            precio: parseFloat(formData.precioMayoreo?.toString() || '0'),
+            tipo: 'mayoreo' as const
+          }
+        ],
+        // Set calculated unit cost and total cost
+        costoUnitarioCalculado: parseFloat(costoUnitario.toFixed(2)),
+        costo: costoTotal, // Backward compatibility
+        // Add createdBy/updatedBy info
+        creadoPor: currentUser.uid,
+        fechaActualizacion: new Date().toISOString(),
+        // Ensure these fields are included
+        stockMinimo: formData.stockMinimo || 0,
+        stockMaximo: formData.stockMaximo || 0,
+        activo: true
+      };
+
+      // If registering as purchase, create accounting entry
+      if (formData.registrarComoCompra && !isEdit && costoTotal > 0) {
+        try {
+          // Add accounting entry for the purchase
+          await addAccountingEntry({
+            tipo: 'gasto',
+            categoria: 'compras',
+            monto: costoTotal,
+            descripcion: `Compra de ${cantidad} unidades de ${formData.nombre}`,
+            fecha: new Date().toISOString(),
+            referencia: `producto_${Date.now()}`,
+            estado: 'completado',
+            creadoPor: currentUser.uid
+          });
+        } catch (error) {
+          console.error('Error al registrar la compra en contabilidad:', error);
+          enqueueSnackbar('Producto guardado, pero hubo un error al registrar la compra en contabilidad', { variant: 'warning' });
+        }
+      }
+
+      // Submit the product data
       await onSubmit(productData);
       enqueueSnackbar(
         isEdit ? 'Producto actualizado correctamente' : 'Producto creado correctamente',
@@ -272,11 +307,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
       );
       navigate('/inventario');
     } catch (error) {
-      console.error('Error saving product:', error);
-      enqueueSnackbar(`Error al guardar el producto: ${error instanceof Error ? error.message : 'Error desconocido'}`, { 
-        variant: 'error',
-        autoHideDuration: 5000
-      });
+      console.error('Error al guardar el producto:', error);
+      enqueueSnackbar(
+        `Error al ${isEdit ? 'actualizar' : 'crear'} el producto: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        { variant: 'error' }
+      );
     } finally {
       setIsLoading(false);
     }
@@ -544,31 +579,66 @@ const ProductForm: React.FC<ProductFormProps> = ({
           />
         </Grid>
 
-        {/* Sección de Costos */}
+        {/* Cost Section */}
         <Grid item xs={12}>
           <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Costos</Typography>
           <Divider sx={{ mb: 2 }} />
         </Grid>
         
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Costo Total"
-            type="number"
-            variant="outlined"
-            margin="normal"
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              inputProps: { min: 0, step: '0.01' },
-            }}
-            {...register('costo', { 
-              required: 'El costo es requerido',
-              min: { value: 0, message: 'El costo no puede ser negativo' },
-              valueAsNumber: true
-            })}
-            error={!!errors.costo}
-            helperText={errors.costo?.message}
-          />
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              label="Costo Total"
+              type="number"
+              variant="outlined"
+              margin="normal"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                inputProps: { min: 0, step: '0.01' },
+              }}
+              {...register('costoTotal', { 
+                required: 'El costo total es requerido',
+                min: { value: 0, message: 'El costo no puede ser negativo' },
+                valueAsNumber: true
+              })}
+              error={!!errors.costoTotal}
+              helperText={errors.costoTotal?.message}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              label="Costo Unitario"
+              type="number"
+              variant="outlined"
+              margin="normal"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                readOnly: true,
+                inputProps: { min: 0, step: '0.01' },
+              }}
+              value={watch('costoUnitarioCalculado')?.toFixed(2) || '0.00'}
+              helperText="Calculado automáticamente"
+            />
+          </Grid>
+          
+          {!isEdit && (
+            <Grid item xs={12} md={4} sx={{ display: 'flex', alignItems: 'center' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    {...register('registrarComoCompra')}
+                    defaultChecked={true}
+                    color="primary"
+                  />
+                }
+                label="Registrar como compra en contabilidad"
+                sx={{ mt: 2 }}
+              />
+            </Grid>
+          )}
         </Grid>
         
         <Grid item xs={12} md={4}>
