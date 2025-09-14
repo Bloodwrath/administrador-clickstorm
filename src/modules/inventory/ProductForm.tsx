@@ -478,6 +478,72 @@ const ProductForm: React.FC<ProductFormProps> = ({
           />
         </Grid>
 
+        {/* Sección de Inventario */}
+        <Grid item xs={12}>
+          <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Inventario</Typography>
+          <Divider sx={{ mb: 2 }} />
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Cantidad en Stock"
+            type="number"
+            variant="outlined"
+            margin="normal"
+            inputProps={{ min: 0, step: '1' }}
+            {...register('stock', { 
+              required: 'La cantidad es requerida',
+              min: { value: 0, message: 'La cantidad no puede ser negativa' },
+              valueAsNumber: true
+            })}
+            error={!!errors.stock}
+            helperText={errors.stock?.message}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Stock Mínimo"
+            type="number"
+            variant="outlined"
+            margin="normal"
+            inputProps={{ min: 0, step: '1' }}
+            {...register('stockMinimo', { 
+              required: 'El stock mínimo es requerido',
+              min: { value: 0, message: 'El stock mínimo no puede ser negativo' },
+              valueAsNumber: true
+            })}
+            error={!!errors.stockMinimo}
+            helperText={errors.stockMinimo?.message}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <TextField
+            fullWidth
+            label="Stock Máximo"
+            type="number"
+            variant="outlined"
+            margin="normal"
+            inputProps={{ min: 1, step: '1' }}
+            {...register('stockMaximo', { 
+              required: 'El stock máximo es requerido',
+              min: { 
+                value: 1, 
+                message: 'El stock máximo debe ser mayor a 0' 
+              },
+              validate: (value) => 
+                value >= watch('stockMinimo') || 
+                'El stock máximo debe ser mayor o igual al stock mínimo',
+              valueAsNumber: true
+            })}
+            error={!!errors.stockMaximo}
+            helperText={errors.stockMaximo?.message}
+          />
+        </Grid>
+
         {/* Sección de Costos */}
         <Grid item xs={12}>
           <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Costos</Typography>
@@ -497,7 +563,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
             }}
             {...register('costo', { 
               required: 'El costo es requerido',
-              min: { value: 0, message: 'El costo no puede ser negativo' }
+              min: { value: 0, message: 'El costo no puede ser negativo' },
+              valueAsNumber: true
             })}
             error={!!errors.costo}
             helperText={errors.costo?.message}
