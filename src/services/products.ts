@@ -40,6 +40,7 @@ export type Product = {
   precios: Precio[];
   moneda: string;
   costo: number;
+  costoUnitario?: number;
   costoProduccion?: number;
   stock: number;
   stockMinimo: number;
@@ -53,6 +54,10 @@ export type Product = {
   creadoPor?: string;
   historialPrecios?: any[];
   etiquetas?: string[];
+  // New fields
+  precioMenudeo?: number;
+  precioMayoreo?: number;
+  cantidadMinimaMayoreo?: number;
 };
 
 const COL = 'productos';
@@ -61,17 +66,69 @@ const COL = 'productos';
 export const createProduct = addProduct;
 
 export async function addProduct(data: Product): Promise<string> {
-  const ref = await addDoc(collection(db, COL), {
+  // Calculate unit cost if not provided
+  const costoUnitario = data.costoUnitario || (data.stock > 0 ? data.costo / data.stock : 0);
+  
+  // Ensure precios array is properly formatted
+  const precios = data.precios?.length > 0 
+    ? data.precios 
+    : [
+        { cantidadMinima: 1, precio: data.precioMenudeo || 0, tipo: 'menudeo' },
+        { 
+          cantidadMinima: data.cantidadMinimaMayoreo || 10, 
+          precio: data.precioMayoreo || 0, 
+          tipo: 'mayoreo' 
+        }
+      ];
+
+  const productData = {
     ...data,
+    precios,
+    costoUnitario: parseFloat(costoUnitario.toFixed(4)),
     fechaCreacion: serverTimestamp(),
     fechaActualizacion: serverTimestamp(),
-  });
+    // Ensure these fields are included
+    precioMenudeo: data.precioMenudeo || (data.precios?.find(p => p.tipo === 'menudeo')?.precio || 0),
+    precioMayoreo: data.precioMayoreo || (data.precios?.find(p => p.tipo === 'mayoreo')?.precio || 0),
+    cantidadMinimaMayoreo: data.cantidadMinimaMayoreo || (data.precios?.find(p => p.tipo === 'mayoreo')?.cantidadMinima || 10),
+  };
+
+  const ref = await addDoc(collection(db, COL), productData);
   return ref.id;
 }
 
 export async function updateProduct(id: string, data: Partial<Product>): Promise<void> {
+  const updateData: any = { ...data };
+  
+  // Recalculate unit cost if either costo or stock is being updated
+  if (data.costo !== undefined || data.stock !== undefined) {
+    const currentDoc = await getDoc(doc(db, COL, id));
+    const currentData = currentDoc.data() as Product;
+    
+    const newCosto = data.costo !== undefined ? data.costo : currentData.costo;
+    const newStock = data.stock !== undefined ? data.stock : currentData.stock;
+    
+    updateData.costoUnitario = newStock > 0 ? parseFloat((newCosto / newStock).toFixed(4)) : 0;
+  }
+  
+  // Ensure precios array is properly updated if any price fields change
+  if (data.precioMenudeo !== undefined || data.precioMayoreo !== undefined || data.cantidadMinimaMayoreo !== undefined) {
+    updateData.precios = [
+      {
+        cantidadMinima: 1,
+        precio: data.precioMenudeo !== undefined ? data.precioMenudeo : (data.precios?.[0]?.precio || 0),
+        tipo: 'menudeo' as const
+      },
+      {
+        cantidadMinima: data.cantidadMinimaMayoreo || (data.precios?.[1]?.cantidadMinima || 10),
+        precio: data.precioMayoreo !== undefined ? data.precioMayoreo : (data.precios?.[1]?.precio || 0),
+        tipo: 'mayoreo' as const
+      }
+    ];
+  }
+  
   await updateDoc(doc(db, COL, id), {
-    ...data,
+    ...updateData,
     fechaActualizacion: serverTimestamp(),
   });
 }

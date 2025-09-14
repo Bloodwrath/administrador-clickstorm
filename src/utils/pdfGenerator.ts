@@ -1,6 +1,12 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { Order } from '../types/order';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 export const generateOrderPdf = (order: Order) => {
   const doc = new jsPDF();
@@ -65,7 +71,7 @@ export const generateOrderPdf = (order: Order) => {
     formatCurrency(item.total)
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: headers,
     body: data,
