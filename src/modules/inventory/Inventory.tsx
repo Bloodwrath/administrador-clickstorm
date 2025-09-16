@@ -691,10 +691,25 @@ const ProductFormWrapper = () => {
       moneda: 'MXN',
       costo: 0,
       costoProduccion: 0,
-      historialPrecios: (productData.historialPrecios || []).map(ph => ({
-        ...ph,
-        fecha: ph.fecha && !(ph.fecha instanceof Date) ? new Date(ph.fecha) : (ph.fecha || new Date())
-      })),
+      historialPrecios: (productData.historialPrecios || []).map(ph => {
+        let fecha: Date;
+        if (!ph.fecha) {
+          fecha = new Date();
+        } else if (ph.fecha instanceof Date) {
+          fecha = ph.fecha;
+        } else if (typeof ph.fecha === 'object' && 'toDate' in ph.fecha) {
+          // Handle Firebase Timestamp
+          fecha = (ph.fecha as any).toDate();
+        } else if (typeof ph.fecha === 'string' || typeof ph.fecha === 'number') {
+          fecha = new Date(ph.fecha);
+        } else {
+          fecha = new Date();
+        }
+        return {
+          ...ph,
+          fecha
+        };
+      }),
       itemsPaquete: [],
       imagenes: [],
       activo: true,
@@ -724,10 +739,25 @@ const ProductFormWrapper = () => {
       precios: productData.precios || [],
       itemsPaquete: productData.itemsPaquete || [],
       imagenes: productData.imagenes || [],
-      historialPrecios: (productData.historialPrecios || []).map(ph => ({
-        ...ph,
-        fecha: ph.fecha && !(ph.fecha instanceof Date) ? new Date(ph.fecha) : (ph.fecha || new Date())
-      }))
+      historialPrecios: (productData.historialPrecios || []).map(ph => {
+        let fecha: Date;
+        if (!ph.fecha) {
+          fecha = new Date();
+        } else if (ph.fecha instanceof Date) {
+          fecha = ph.fecha;
+        } else if (typeof ph.fecha === 'object' && 'toDate' in ph.fecha) {
+          // Handle Firebase Timestamp
+          fecha = (ph.fecha as any).toDate();
+        } else if (typeof ph.fecha === 'string' || typeof ph.fecha === 'number') {
+          fecha = new Date(ph.fecha);
+        } else {
+          fecha = new Date();
+        }
+        return {
+          ...ph,
+          fecha
+        };
+      })
     };
     
     const docRef = await addDoc(collection(db, 'productos'), newProduct);

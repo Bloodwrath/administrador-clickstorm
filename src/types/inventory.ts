@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 /**
  * Tipos de datos para el módulo de inventario
  */
@@ -9,12 +11,27 @@ export interface Dimensiones {
   unidad: 'cm' | 'pulgadas' | 'mm';
 }
 
+export interface DimensionesSublimacion {
+  ancho: number;
+  alto: number;
+  forma?: 'rectangular' | 'circular' | 'ovalada' | 'personalizada';
+  unidad: 'cm' | 'pulgadas' | 'mm';
+  notas?: string; // Para detalles adicionales sobre el área de sublimación
+}
+
+export type FirebaseDate = Date | Timestamp;
+
 export interface PrecioHistorico {
-  fecha: Date;
+  fecha: FirebaseDate;
   precio: number;
   moneda: string;
   motivo?: string;
 }
+
+// Helper function to convert Firebase Timestamp to Date
+export const toDate = (date: FirebaseDate): Date => {
+  return date instanceof Timestamp ? date.toDate() : date;
+};
 
 export interface ImagenProducto {
   id: string;
@@ -50,14 +67,16 @@ export interface Producto {
   // Categorización
   categoriaId: string;
   categoria?: string; // For backward compatibility
+  subcategoria?: string; // Nueva subcategoría
   proveedorId: string;
   proveedor?: string; // For backward compatibility
   tipo: TipoProducto;
   etiquetas: string[];
-  ubicacion?: string;
+  ubicacion?: string; // Ubicación física en el almacén
   
   // Especificaciones
   dimensiones: Dimensiones;
+  dimensionesSublimacion?: DimensionesSublimacion; // Nuevo campo para dimensiones del área de sublimación
   material: string;
   
   // Inventario

@@ -5,7 +5,6 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  UserCredential,
   updateProfile,
   sendPasswordResetEmail,
   updateEmail,
@@ -34,57 +33,78 @@ import {
   DocumentSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+// Storage is imported but not used in this file
 import { app } from './firebase';
-import {
-  Producto,
-  Categoria,
-  Proveedor,
-  MovimientoInventario,
-  AlertaInventario,
-  CATEGORIAS_SUBLIMACION,
-  PrecioHistorico,
+import { 
+  Producto, 
+  FirebaseDate, 
+  Categoria, 
+  Proveedor, 
+  AlertaInventario, 
+  CATEGORIAS_SUBLIMACION 
 } from '../types/inventory';
 import { prepareImageForFirebase, reconstructImageFromChunks } from './imageService';
 
 // Inicializar servicios de Firebase
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 // Referencias a colecciones
-const USUARIOS_COLLECTION = 'usuarios';
 const PRODUCTOS_COLLECTION = 'productos';
-const CATEGORIAS_COLLECTION = 'categorias';
 const PROVEEDORES_COLLECTION = 'proveedores';
-const MOVIMIENTOS_COLLECTION = 'movimientos';
-const ALERTAS_COLLECTION = 'alertas';
+const CATEGORIAS_COLLECTION = 'categorias';
 const IMAGENES_COLLECTION = 'imagenes';
 const CHUNKS_COLLECTION = 'chunks';
+const ALERTAS_COLLECTION = 'alertas';
 
 // Tipos de datos para Firestore
 interface FirebaseProducto extends Omit<Producto, 'fechaCreacion' | 'fechaActualizacion' | 'historialPrecios'> {
-  fechaCreacion: Timestamp;
-  fechaActualizacion: Timestamp;
+  fechaCreacion: Timestamp | Date;
+  fechaActualizacion: Timestamp | Date;
   historialPrecios: Array<{
-    fecha: Timestamp;
+    fecha: Timestamp | Date;
     precio: number;
     moneda: string;
     motivo?: string;
   }>;
 }
 
+// Helper para convertir Timestamp a Date
+const convertTimestamps = (data: any): any => {
+  if (!data) return data;
+  
+  if (data instanceof Timestamp) {
+    return data.toDate();
+  }
+  
+  if (Array.isArray(data)) {
+    return data.map(convertTimestamps);
+  }
+  
+  if (typeof data === 'object') {
+    const result: Record<string, any> = {};
+    for (const key in data) {
+      result[key] = convertTimestamps(data[key]);
+    }
+    return result;
+  }
+  
+  return data;
+};
+
 // Convertir de Firebase a tipos de la aplicación
 const productoFromFirebase = (doc: DocumentSnapshot<DocumentData>): Producto => {
   const data = doc.data() as FirebaseProducto;
+  const convertedData = convertTimestamps(data);
+  
   return {
-    ...data,
+    ...convertedData,
     id: doc.id,
-    fechaCreacion: data.fechaCreacion?.toDate() || new Date(),
-    fechaActualizacion: data.fechaActualizacion?.toDate() || new Date(),
-    historialPrecios: data.historialPrecios?.map(item => ({
+    fechaCreacion: convertedData.fechaCreacion || new Date(),
+    fechaActualizacion: convertedData.fechaActualizacion || new Date(),
+    historialPrecios: convertedData.historialPrecios?.map((item: { fecha?: FirebaseDate }) => ({
       ...item,
-      fecha: item.fecha?.toDate() || new Date(),
+      fecha: item.fecha || new Date(),
     })) || [],
   };
 };
@@ -191,18 +211,14 @@ export const productoService = {
   crearProducto: async (producto: Omit<Producto, 'id' | 'fechaCreacion' | 'fechaActualizacion'>) => {
     try {
       const docRef = doc(collection(db, PRODUCTOS_COLLECTION));
-      const nuevoProducto: FirebaseProducto = {
+      const nuevoProducto = {
         ...producto,
-        fechaCreacion: serverTimestamp() as Timestamp,
-        fechaActualizacion: serverTimestamp() as Timestamp,
-        historialPrecios: [
-          {
-            fecha: serverTimestamp() as Timestamp,
-            precio: Array.isArray(producto.precios) && producto.precios.length > 0 ? producto.precios[0].precio : 0,
-            moneda: 'MXN',
-            motivo: 'Precio inicial',
-          },
-        ],
+        fechaCreacion: serverTimestamp(),
+        fechaActualizacion: serverTimestamp(),
+        historialPrecios: (producto.historialPrecios || []).map(p => ({
+          ...p,
+          fecha: p.fecha || new Date(),
+        })),
       };
 
       await setDoc(docRef, nuevoProducto);
@@ -214,34 +230,53 @@ export const productoService = {
   },
 
   // Actualizar un producto
-  actualizarProducto: async (id: string, datosActualizados: Omit<Partial<Producto>, 'fechaCreacion' | 'fechaActualizacion' | 'historialPrecios'>) => {
+  actualizarProducto: async (id: string, actualizacion: Partial<Producto>) => {
     try {
       const docRef = doc(db, PRODUCTOS_COLLECTION, id);
-      const actualizacion: Partial<FirebaseProducto> = {
-        ...datosActualizados,
-        fechaActualizacion: serverTimestamp() as Timestamp,
-      };
+      const docSnap = await getDoc(docRef);
 
-      // Si se actualiza el precio, agregar al historial
-      if (datosActualizados.precios && Array.isArray(datosActualizados.precios) && datosActualizados.precios.length > 0) {
-        const productoActual = await getDoc(docRef);
-        if (productoActual.exists()) {
-          const data = productoActual.data() as FirebaseProducto;
-          actualizacion.historialPrecios = [
-            ...(data.historialPrecios || []),
-            {
-              fecha: serverTimestamp() as Timestamp,
-              precio: datosActualizados.precios[0].precio,
-              moneda: datosActualizados.precios[0].tipo === 'mayoreo' ? 'MXN' : 'MXN',
-              motivo: 'Actualización de precio',
-            },
-          ];
+      if (!docSnap.exists()) {
+        throw new Error('El producto no existe');
+      }
+
+      // Si hay cambios en los precios, registrar en el historial
+      const datosActuales = docSnap.data() as FirebaseProducto;
+      const datosActualizados = actualizacion as FirebaseProducto;
+      let datosParaActualizar = { ...actualizacion };
+
+      if (datosActualizados.precios && datosActualizados.precios.length > 0) {
+        const precioActual = datosActuales.precios[0]?.precio;
+        const nuevoPrecio = datosActualizados.precios[0]?.precio;
+
+        if (precioActual !== nuevoPrecio) {
+          // Agregar al historial de precios
+          datosParaActualizar = {
+            ...datosParaActualizar,
+            historialPrecios: [
+              ...(datosActuales.historialPrecios || []),
+              {
+                fecha: serverTimestamp() as Timestamp,
+                precio: datosActualizados.precios[0].precio,
+                moneda: datosActualizados.precios[0].tipo === 'mayoreo' ? 'MXN' : 'MXN',
+                motivo: 'Actualización de precio',
+              },
+            ],
+          };
         }
       }
 
       // Eliminar propiedades que no deberían actualizarse directamente
-      const { id: _, fechaCreacion, ...datosParaActualizar } = actualizacion;
-      await updateDoc(docRef, datosParaActualizar);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id: _, fechaCreacion, ...datosFinales } = datosParaActualizar;
+      
+      // Asegurarse de que los datos son compatibles con Firestore
+      const updateData: Record<string, any> = { ...datosFinales };
+      
+      // Actualizar la fecha de actualización
+      updateData.fechaActualizacion = serverTimestamp();
+      
+      // Realizar la actualización
+      await updateDoc(docRef, updateData);
     } catch (error) {
       console.error('Error al actualizar producto:', error);
       throw error;
