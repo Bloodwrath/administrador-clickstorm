@@ -1,8 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { ProductoFormData } from './ProductForm';
-import { PrecioCantidad, ImagenProducto } from '../../types/inventory';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
@@ -12,43 +9,34 @@ import {
   InputLabel, 
   Select, 
   MenuItem,
-  Container,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControlLabel,
-  Checkbox
+  Tooltip, 
+  IconButton, 
+  InputAdornment
 } from '@mui/material';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Add as AddIcon, Save as SaveIcon, Image as ImageIcon } from '@mui/icons-material';
-import { db } from '../../services/firebase';
-import { addDoc, collection } from 'firebase/firestore';
+import { 
+  Add as AddIcon, 
+  Save as SaveIcon, 
+  Image as ImageIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  Search as SearchIcon
+} from '@mui/icons-material';
 
 // Context
-import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from '../../context/SnackbarContext';
 
 // Services
-import { 
-  listenProducts, 
-  deleteProduct, 
-  updateProduct, 
-  getProductById
-} from '../../services/products';
-import { 
-  Supplier,
-  listenSuppliers, 
-  addSupplier, 
-  updateSupplier, 
-  deleteSupplier, 
-  getSupplierById 
-} from '../../services/suppliers';
-import { getLargeText } from '../../services/textStorage';
+import { listenProducts, deleteProduct, getProductById } from '../../services/products';
+
+// Components
+import DataTable from '../../components/shared/DataTable';
 
 // Types
 import { Producto } from '../../types/inventory';
-import ProductForm from './ProductForm';
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => {
@@ -56,6 +44,19 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
   const { showMessage } = useSnackbar();
   const [rows, setRows] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');
+  
+  // Función para manejar la eliminación de productos
+  const handleDelete = async (id: string) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+      try {
+        await deleteProduct(id);
+        showMessage('Producto eliminado correctamente', 'success');
+      } catch (error) {
+        console.error('Error al eliminar el producto:', error);
+        showMessage('No se pudo eliminar el producto', 'error');
+      }
+    }
+  };
   const [filterSupplier, setFilterSupplier] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -287,304 +288,204 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly }) => 
       )
     },
     { 
-      field: 'supplierName', 
-      headerName: 'Proveedor', 
-      flex: 1,
-      minWidth: 150,
-      valueFormatter: (params) => params.value || 'N/A'
-    },
-    { 
       field: 'categoria', 
       headerName: 'Categoría', 
-      flex: 1,
-      minWidth: 120,
-      valueFormatter: (params) => params.value || 'N/A'
+      flex: 1, 
+      minWidth: 150 
     },
     { 
-      field: 'precioMenudeo', 
-      headerName: 'P. Menudeo', 
-      width: 120, 
-      valueFormatter: (v) => `$${(v.value || 0).toFixed(2)}`,
-      headerAlign: 'right',
-      align: 'right'
-    },
-    { 
-      field: 'precioMayoreo', 
-      headerName: 'P. Mayoreo', 
-      width: 120, 
-      valueFormatter: (v) => `$${(v.value || 0).toFixed(2)}`,
-      headerAlign: 'right',
-      align: 'right'
-    },
-    { 
-      field: 'costo', 
-      headerName: 'Costo', 
-      width: 110, 
-      valueFormatter: (v) => `$${(v.value || 0).toFixed(2)}`,
-      headerAlign: 'right',
-      align: 'right'
-    },
-    { 
-      field: 'stock', 
-      headerName: 'Stock', 
-      width: 100,
-      headerAlign: 'right',
-      align: 'right'
-    },
-    { 
-      field: 'minStock', 
-      headerName: 'Stock Mín', 
-      width: 100,
-      headerAlign: 'right',
-      align: 'right'
+      field: 'proveedor', 
+      headerName: 'Proveedor', 
+      flex: 1, 
+      minWidth: 150 
     },
     {
-      field: 'activo',
-      headerName: 'Activo',
-      width: 80,
-      align: 'center',
+      field: 'precio',
+      headerName: 'Precio',
+      type: 'number',
+      width: 130,
+      valueGetter: (params) => {
+        const precios = params.row.precios || [];
+        const precioMenudeo = precios.find((p: any) => p.tipo === 'menudeo');
+        return precioMenudeo?.precio || 0;
+      },
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontWeight="medium">
+          ${params.value?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </Typography>
+      ),
+    },
+    {
+      field: 'stock',
+      headerName: 'Stock',
+      type: 'number',
+      width: 110,
       renderCell: (params: GridRenderCellParams) => (
         <Box
           sx={{
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
-            bgcolor: params.row.activo ? 'success.main' : 'error.main',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
-            fontSize: 12,
-            fontWeight: 'bold'
+            width: '100%',
+            height: '100%',
+            bgcolor: params.value <= params.row.stockMinimo ? 'error.light' : 'transparent',
+            borderRadius: 1,
+            px: 1,
           }}
-          title={params.row.activo ? 'Activo' : 'Inactivo'}
         >
-          {params.row.activo ? 'S' : 'N'}
+          <Typography
+            variant="body2"
+            color={params.value <= params.row.stockMinimo ? 'error.contrastText' : 'inherit'}
+            fontWeight={params.value <= params.row.stockMinimo ? 'bold' : 'normal'}
+          >
+            {params.value}
+          </Typography>
         </Box>
       ),
     },
     {
-      field: 'acciones',
+      field: 'actions',
       headerName: 'Acciones',
-      width: 180,
+      width: 120,
       sortable: false,
-      renderCell: (params: GridRenderCellParams<Producto>) => (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap' }}>
-          <Button 
-            size="small" 
-            variant="outlined" 
-            onClick={() => navigate(`/inventory/edit/${params.row.id}`)}
-            sx={{ minWidth: 80 }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            color="error"
-            onClick={async () => {
-              if (!params.row.id) return;
-              if (!window.confirm('¿Eliminar este producto?')) return;
-              try {
-                await deleteProduct(params.row.id);
-                showMessage('Producto eliminado', 'success');
-              } catch (e) {
-                console.error(e);
-                showMessage('No se pudo eliminar', 'error');
-              }
-            }}
-            sx={{ minWidth: 90 }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ];
-
-  return (
-    <Box sx={{ width: '100%', overflow: 'hidden' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Typography variant="h5">Productos</Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <TextField
-            size="small"
-            placeholder="Buscar por nombre, SKU o categoría"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 250 }}
-          />
-          {/* Filtro por Proveedor */}
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel id="filter-supplier-label">Proveedor</InputLabel>
-            <Select
-              labelId="filter-supplier-label"
-              label="Proveedor"
-              value={filterSupplier}
-              onChange={(e) => setFilterSupplier(e.target.value as string)}
+      filterable: false,
+      hideable: false,
+      renderCell: (params: GridRenderCellParams) => (
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Editar">
+            <IconButton
+              size="small"
+              onClick={() => navigate(`/inventory/edit/${params.row.id}`)}
+              color="primary"
             >
-              <MenuItem value=""><em>Todos</em></MenuItem>
-              {(
-                Array.from(
-                  new Map(
-                    rows
-                      .filter((r) => (r as any).supplierId)
-                      .map((r) => [
-                        (r as any).supplierId,
-                        { id: (r as any).supplierId, name: (r as any).supplierName },
-                      ])
-                  ).values()
-                ) as any[]
-              ).map((s) => (
-                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {/* Filtro por Categoría */}
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="filter-category-label">Categoría</InputLabel>
-            <Select
-              labelId="filter-category-label"
-              label="Categoría"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value as string)}
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Eliminar">
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(params.row.id)}
+              color="error"
             >
-              <MenuItem value=""><em>Todas</em></MenuItem>
-              {Array.from(new Set(rows.map(r => r.categoria).filter(Boolean) as string[])).map((c) => (
-                <MenuItem key={c} value={c}>{c}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<SaveIcon />}
-            onClick={() => {
-              // Exportar CSV de los elementos filtrados
-              const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
-              const lines = [headers.join(',')];
-              
-              filtered.forEach((product: Producto) => {
-                const menudeoPrice = product.precios?.find(p => p.tipo === 'menudeo')?.precio ?? 0;
-                const mayoreoPrice = product.precios?.find(p => p.tipo === 'mayoreo')?.precio ?? 0;
-                
-                const row = [
-                  product.nombre ?? '',
-                  product.codigoBarras ?? '',
-                  product.sku ?? '',
-                  product.categoria ?? product.categoriaId ?? '',
-                  product.proveedor ?? product.proveedorId ?? '',
-                  menudeoPrice.toString(),
-                  mayoreoPrice.toString(),
-                  String(product.stock ?? 0),
-                  String(product.stockMinimo ?? 0),
-                  String(product.stockMaximo ?? 0),
-                  product.activo ? 'Sí' : 'No',
-                ];
-                
-                // Escape commas with quotes
-                lines.push(row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-              });
-              
-              const csv = lines.join('\n');
-              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            }}
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           >
-            Exportar CSV
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<SaveIcon />}
-            onClick={() => {
-              // Export as Excel (XLS) using HTML table (Excel compatible)
-              const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
+            <MenuItem value=""><em>Todas</em></MenuItem>
+            {Array.from(new Set(rows.map(r => r.categoria).filter(Boolean) as string[])).map((c) => (
+              <MenuItem key={c} value={c}>{c}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<SaveIcon />}
+          onClick={() => {
+            // Exportar CSV de los elementos filtrados
+            const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
+            const lines = [headers.join(',')];
+            
+            filtered.forEach((product: Producto) => {
+              const menudeoPrice = product.precios?.find(p => p.tipo === 'menudeo')?.precio ?? 0;
+              const mayoreoPrice = product.precios?.find(p => p.tipo === 'mayoreo')?.precio ?? 0;
               
-              const rowsHtml = filtered.map((product: Producto) => {
-                const menudeoPrice = product.precios?.find(p => p.tipo === 'menudeo')?.precio ?? 0;
-                const mayoreoPrice = product.precios?.find(p => p.tipo === 'mayoreo')?.precio ?? 0;
-                
-                return (
-                  `<tr>` +
-                  `<td>${(product.nombre ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</td>` +
-                  `<td>${product.codigoBarras ?? ''}</td>` +
-                  `<td>${product.sku ?? ''}</td>` +
-                  `<td>${product.categoria ?? product.categoriaId ?? ''}</td>` +
-                  `<td>${product.proveedor ?? product.proveedorId ?? ''}</td>` +
-                  `<td>${menudeoPrice}</td>` +
-                  `<td>${mayoreoPrice}</td>` +
-                  `<td>${product.stock ?? 0}</td>` +
-                  `<td>${product.stockMinimo ?? 0}</td>` +
-                  `<td>${product.stockMaximo ?? 0}</td>` +
-                  `<td>${product.activo ? 'Sí' : 'No'}</td>` +
-                  `</tr>`
-                );
-              }).join('');
+              const row = [
+                product.nombre ?? '',
+                product.codigoBarras ?? '',
+                product.sku ?? '',
+                product.categoria ?? product.categoriaId ?? '',
+                product.proveedor ?? product.proveedorId ?? '',
+                menudeoPrice.toString(),
+                mayoreoPrice.toString(),
+                String(product.stock ?? 0),
+                String(product.stockMinimo ?? 0),
+                String(product.stockMaximo ?? 0),
+                product.activo ? 'Sí' : 'No',
+              ];
               
-              const html = `
-                <!DOCTYPE html>
-                <html>
-                  <head>
-                    <meta charset="UTF-8">
-                    <style>
-                      table { border-collapse: collapse; width: 100%; }
-                      th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-                      th { background-color: #f2f2f2; }
-                    </style>
-                  </head>
-                  <body>
-                    <table>
-                      <thead>
-                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-                      </thead>
-                      <tbody>${rowsHtml}</tbody>
-                    </table>
-                  </body>
-                </html>`;
-              const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'inventario.xls';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Exportar Excel
-          </Button>
-        </Box>
+              // Escape commas with quotes
+              lines.push(row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+            });
+            
+            const csv = lines.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `inventario_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Exportar CSV
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<SaveIcon />}
+          onClick={() => {
+            // Export as Excel (XLS) using HTML table (Excel compatible)
+            const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
+            
+            const rowsHtml = filtered.map((product: Producto) => {
+              const menudeoPrice = product.precios?.find(p => p.tipo === 'menudeo')?.precio ?? 0;
+              const mayoreoPrice = product.precios?.find(p => p.tipo === 'mayoreo')?.precio ?? 0;
+              
+              return (
+                `<tr>` +
+                `<td>${(product.nombre ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</td>` +
+                `<td>${product.codigoBarras ?? ''}</td>` +
+                `<td>${product.sku ?? ''}</td>` +
+                `<td>${product.categoria ?? product.categoriaId ?? ''}</td>` +
+                `<td>${product.proveedor ?? product.proveedorId ?? ''}</td>` +
+                `<td>${menudeoPrice}</td>` +
+                `<td>${mayoreoPrice}</td>` +
+                `<td>${product.stock ?? 0}</td>` +
+                `<td>${product.stockMinimo ?? 0}</td>` +
+                `<td>${product.stockMaximo ?? 0}</td>` +
+                `<td>${product.activo ? 'Sí' : 'No'}</td>` +
+                `</tr>`
+              );
+            }).join('');
+            
+            const html = `
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <style>
+                    table { border-collapse: collapse; width: 100%; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                  </style>
+                </head>
+                <body>
+                  <table>
+                    <thead>
+                      <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                  </table>
+                </body>
+              </html>`;
+            
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'inventario.xls';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Exportar Excel
+        </Button>
       </Box>
-      <div style={{ width: '100%' }}>
-        <DataGrid autoHeight rows={filtered} columns={columns} getRowId={(r) => r.id!} pageSizeOptions={[5, 10, 25]} />
-      </div>
-      <Dialog open={previewOpen} onClose={() => { if (previewSrc) URL.revokeObjectURL(previewSrc); setPreviewOpen(false); setPreviewSrc(null); }} maxWidth="lg">
-        <DialogTitle>Vista previa</DialogTitle>
-        <DialogContent>
-          {previewSrc && (
-            <img
-              src={previewSrc}
-              alt="Producto"
-              style={{ maxWidth: '90vw', maxHeight: '80vh', display: 'block' }}
-              onClick={() => window.open(previewSrc!, '_blank')}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          {previewSrc && (
-            <a href={previewSrc} download="imagen-producto" style={{ textDecoration: 'none' }}>
-              <Button>Descargar</Button>
-            </a>
-          )}
-          <Button onClick={() => { if (previewSrc) URL.revokeObjectURL(previewSrc); setPreviewOpen(false); setPreviewSrc(null); }}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Box>

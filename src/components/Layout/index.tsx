@@ -29,26 +29,52 @@ import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from '../../context/SnackbarContext';
 
 const drawerWidth = 240;
+const collapsedWidth = 64;
+
+const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
+  ({ theme, open }) => ({
+    width: drawerWidth,
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
+    boxSizing: 'border-box',
+    '& .MuiDrawer-paper': {
+      width: open ? drawerWidth : collapsedWidth,
+      transition: theme.transitions.create(['width', 'margin'], {
+        easing: theme.transitions.easing.sharp,
+        duration: theme.transitions.duration.enteringScreen,
+      }),
+      overflowX: 'hidden',
+      [theme.breakpoints.down('md')]: {
+        width: drawerWidth,
+        transform: open ? 'translateX(0)' : `translateX(-${drawerWidth}px)`
+      },
+    },
+  }),
+);
 
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
   open?: boolean;
 }>(({ theme, open }) => ({
   flexGrow: 1,
   padding: theme.spacing(3),
-  transition: theme.transitions.create('margin', {
+  transition: theme.transitions.create(['margin', 'width'], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
-  marginLeft: 0,
+  marginLeft: collapsedWidth,
+  width: `calc(100% - ${collapsedWidth}px)`,
   ...(open && {
-    transition: theme.transitions.create('margin', {
+    transition: theme.transitions.create(['margin', 'width'], {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
     marginLeft: drawerWidth,
+    width: `calc(100% - ${drawerWidth}px)`,
   }),
-  [theme.breakpoints.down('sm')]: {
+  [theme.breakpoints.down('md')]: {
     padding: theme.spacing(2),
+    marginLeft: 0,
+    width: '100%',
   },
 }));
 
@@ -59,9 +85,15 @@ const AppBarStyled = styled(AppBar, {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
+  width: `calc(100% - ${collapsedWidth}px)`,
+  marginLeft: collapsedWidth,
+  [theme.breakpoints.down('md')]: {
+    width: '100%',
+    marginLeft: 0,
+  },
   ...(open && {
     width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: `${drawerWidth}px`,
+    marginLeft: drawerWidth,
     transition: theme.transitions.create(['margin', 'width'], {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
