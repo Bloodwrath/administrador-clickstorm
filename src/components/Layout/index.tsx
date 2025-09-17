@@ -6,7 +6,7 @@ import {
   Box,
   CssBaseline,
   Divider,
-  Drawer,
+  Drawer as MuiDrawer,
   IconButton,
   List,
   ListItem,
@@ -31,7 +31,20 @@ import { useSnackbar } from '../../context/SnackbarContext';
 const drawerWidth = 240;
 const collapsedWidth = 64;
 
-const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(
+interface StyledDrawerProps {
+  open?: boolean;
+  children?: React.ReactNode;
+  variant?: 'permanent' | 'persistent' | 'temporary';
+  onClose?: () => void;
+  ModalProps?: {
+    keepMounted: boolean;
+  };
+  sx?: any;
+}
+
+const StyledDrawer = styled(MuiDrawer, { 
+  shouldForwardProp: (prop) => prop !== 'open' 
+})<StyledDrawerProps>(
   ({ theme, open }) => ({
     width: drawerWidth,
     flexShrink: 0,
@@ -193,7 +206,7 @@ const Layout: React.FC = () => {
         sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
         aria-label="mailbox folders"
       >
-        <Drawer
+        <StyledDrawer
           variant={isMobile ? 'temporary' : 'permanent'}
           open={mobileOpen}
           onClose={handleDrawerToggle}
@@ -208,7 +221,7 @@ const Layout: React.FC = () => {
           }}
         >
           {drawer}
-        </Drawer>
+        </StyledDrawer>
       </Box>
       <Main open={mobileOpen}>
         <Toolbar />

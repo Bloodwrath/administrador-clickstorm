@@ -6,10 +6,15 @@ import {
   GridToolbar,
   esES,
 } from '@mui/x-data-grid';
-import { Box, useTheme, useMediaQuery } from '@mui/material';
+import { Box, Typography, useTheme, useMediaQuery } from '@mui/material';
+
+// Type for our enhanced column definition
+type DataTableColumn = GridColDef & {
+  hideOnMobile?: boolean;
+};
 
 interface DataTableProps extends Omit<MuiDataGridProps, 'columns'> {
-  columns: GridColDef[];
+  columns: DataTableColumn[];
   loading?: boolean;
   title?: string;
   height?: string | number;
@@ -31,16 +36,10 @@ const DataTable: React.FC<DataTableProps> = ({
 
   // Ajustar columnas para dispositivos móviles
   const processedColumns = React.useMemo(() => {
-    return columns.map(column => {
-      // Ocultar columnas menos importantes en móviles
-      if (column.hideOnMobile === undefined && column.field !== 'actions' && column.field !== 'nombre') {
-        return {
-          ...column,
-          hideOnMobile: isMobile,
-        };
-      }
-      return column;
-    });
+    return columns.map((column: any) => ({
+      ...column,
+      hideOnMobile: column.hideOnMobile ?? (column.field !== 'actions' && column.field !== 'nombre' ? isMobile : false),
+    }));
   }, [columns, isMobile]);
 
   return (
@@ -79,7 +78,7 @@ const DataTable: React.FC<DataTableProps> = ({
         rows={rows}
         columns={processedColumns}
         loading={loading}
-        disableSelectionOnClick
+        disableRowSelectionOnClick={true}
         disableColumnMenu={isTablet}
         density={isMobile ? 'compact' : 'standard'}
         components={{
