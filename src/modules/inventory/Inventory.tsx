@@ -37,22 +37,71 @@ import DataTable from '../../components/shared/DataTable';
 
 // Types
 import { Product } from '../../services/products';
+import { Producto } from '../../types/inventory';
 
 // Lista de productos con acciones
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = false }) => {
   const navigate = useNavigate();
   const { showMessage } = useSnackbar();
-  const [rows, setRows] = useState<Product[]>([]);
+  const [rows, setRows] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');
   const [filterSupplier, setFilterSupplier] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   
+  // Función para mapear de Product a Producto
+  const mapProductToProducto = (product: Product): Producto => {
+    // Crear un objeto base con las propiedades comunes
+    const baseProduct: Partial<Producto> = {
+      id: product.id,
+      nombre: product.nombre,
+      codigoBarras: product.codigoBarras,
+      descripcion: product.descripcion || '',
+      categoriaId: product.categoriaId || '',
+      proveedorId: product.proveedorId || '',
+      material: product.material || '',
+      stock: product.stock || 0,
+      stockMinimo: product.stockMinimo || 0,
+      stockMaximo: product.stockMaximo || 0,
+      moneda: product.moneda || 'MXN',
+      costo: product.costo || 0,
+      costoProduccion: product.costoProduccion,
+      tipo: product.tipo as 'venta' | 'produccion' | 'paquete',
+      // Propiedades requeridas por Producto
+      dimensiones: {
+        ancho: 0,
+        alto: 0,
+        unidad: 'cm',
+        profundidad: 0
+      },
+      imagenes: [],
+      etiquetas: [],
+      precios: product.precios || [],
+      historialPrecios: [],
+      activo: true,
+      creadoPor: 'system',
+      fechaCreacion: new Date(),
+      fechaActualizacion: new Date(),
+      // Otras propiedades opcionales
+      sku: product.codigoBarras,
+      categoria: product.categoriaId,
+      proveedor: product.proveedorId,
+      // Inicializar dimensionesSublimacion como indefinido
+      dimensionesSublimacion: undefined,
+      // Inicializar itemsPaquete si es un paquete
+      itemsPaquete: product.tipo === 'paquete' ? (product as any).itemsPaquete || [] : undefined
+    };
+
+    return baseProduct as Producto;
+  };
+
   // Cargar productos
   useEffect(() => {
     const unsubscribe = listenProducts((products) => {
-      setRows(products);
+      // Mapear los productos al tipo Producto
+      const productos = products.map(mapProductToProducto);
+      setRows(productos);
     });
     
     return () => {
