@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Theme } from '@mui/material/styles';
 import {
   Box,
   Typography,
@@ -40,31 +39,9 @@ import DataTable from '../../components/shared/DataTable';
 // Types
 import { Producto } from '../../types/inventory';
 
-// Lista de productos con acciones
-const getStyles = (theme: Theme) => ({
-  dataGridRoot: {
-    border: 'none',
-    '& .MuiDataGrid-cell': {
-      borderBottom: `1px solid ${theme.palette.divider}`,
-    },
-    '& .MuiDataGrid-columnHeaders': {
-      backgroundColor: theme.palette.background.paper,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-    },
-    '& .MuiDataGrid-footerContainer': {
-      borderTop: `1px solid ${theme.palette.divider}`,
-    },
-    '& .MuiDataGrid-toolbarContainer': {
-      padding: theme.spacing(2),
-      backgroundColor: 'transparent',
-    },
-  },
-});
-
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = false }) => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const styles = getStyles(theme);
   const { showMessage } = useSnackbar();
   const [rows, setRows] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');

@@ -131,9 +131,6 @@ const AppBarStyled = styled(AppBar, {
 const Layout: React.FC = () => {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
-  const isSm = useMediaQuery(theme.breakpoints.between('sm', 'md'));
-  const isMd = useMediaQuery(theme.breakpoints.between('md', 'lg'));
-  const isLg = useMediaQuery(theme.breakpoints.up('lg'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentUser, signOut } = useAuth();
   const { showMessage } = useSnackbar();
@@ -261,13 +258,6 @@ const Layout: React.FC = () => {
       </List>
     </div>
   );
-
-  // Cerrar el menú móvil cuando cambia la ruta
-  useEffect(() => {
-    if (mobileOpen) {
-      setMobileOpen(false);
-    }
-  }, [location]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
