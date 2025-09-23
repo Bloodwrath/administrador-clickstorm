@@ -35,6 +35,26 @@ import { useSnackbar } from '../../context/SnackbarContext';
 const drawerWidth = 240;
 const collapsedWidth = 64;
 
+// Configuración responsiva del drawer
+const drawerConfig = {
+  // Ancho del drawer en diferentes breakpoints
+  width: {
+    xs: '100%',
+    sm: drawerWidth,
+    md: drawerWidth,
+    lg: collapsedWidth,
+    xl: collapsedWidth
+  },
+  // Comportamiento del drawer en diferentes breakpoints
+  variant: {
+    xs: 'temporary',
+    sm: 'permanent',
+    md: 'permanent',
+    lg: 'permanent',
+    xl: 'permanent'
+  }
+};
+
 interface StyledDrawerProps {
   open?: boolean;
   children?: React.ReactNode;
@@ -46,24 +66,31 @@ interface StyledDrawerProps {
   sx?: any;
 }
 
-const StyledDrawer = styled(MuiDrawer, { 
-  shouldForwardProp: (prop) => prop !== 'open' 
+const StyledDrawer = styled(MuiDrawer, {
+  shouldForwardProp: (prop) => prop !== 'open'
 })<StyledDrawerProps>(
   ({ theme, open }) => ({
-    width: drawerWidth,
     flexShrink: 0,
     whiteSpace: 'nowrap',
     boxSizing: 'border-box',
     '& .MuiDrawer-paper': {
-      width: open ? drawerWidth : collapsedWidth,
       transition: theme.transitions.create(['width', 'margin'], {
         easing: theme.transitions.easing.sharp,
         duration: theme.transitions.duration.enteringScreen,
       }),
       overflowX: 'hidden',
-      [theme.breakpoints.down('md')]: {
-        width: drawerWidth,
-        transform: open ? 'translateX(0)' : `translateX(-${drawerWidth}px)`
+      [theme.breakpoints.down('sm')]: {
+        width: drawerConfig.width.xs,
+        transform: open ? 'translateX(0)' : `translateX(-100%)`,
+      },
+      [theme.breakpoints.between('sm', 'md')]: {
+        width: drawerConfig.width.sm,
+      },
+      [theme.breakpoints.between('md', 'lg')]: {
+        width: drawerConfig.width.md,
+      },
+      [theme.breakpoints.up('lg')]: {
+        width: drawerConfig.width.lg,
       },
     },
   })
@@ -76,37 +103,49 @@ const AppBarStyled = styled(AppBar, {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
-  width: `calc(100% - ${collapsedWidth}px)`,
-  marginLeft: collapsedWidth,
-  [theme.breakpoints.down('md')]: {
+  [theme.breakpoints.down('sm')]: {
     width: '100%',
     marginLeft: 0,
   },
+  [theme.breakpoints.between('sm', 'md')]: {
+    width: `calc(100% - ${drawerConfig.width.sm}px)`,
+    marginLeft: drawerConfig.width.sm,
+  },
+  [theme.breakpoints.between('md', 'lg')]: {
+    width: `calc(100% - ${drawerConfig.width.md}px)`,
+    marginLeft: drawerConfig.width.md,
+  },
+  [theme.breakpoints.up('lg')]: {
+    width: `calc(100% - ${drawerConfig.width.lg}px)`,
+    marginLeft: drawerConfig.width.lg,
+  },
   ...(open && {
-    width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: drawerWidth,
-    transition: theme.transitions.create(['margin', 'width'], {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
+    [theme.breakpoints.down('sm')]: {
+      width: '100%',
+      marginLeft: 0,
+    },
   }),
 }));
 
 
 const Layout: React.FC = () => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
+  const isSm = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+  const isMd = useMediaQuery(theme.breakpoints.between('md', 'lg'));
+  const isLg = useMediaQuery(theme.breakpoints.up('lg'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentUser, signOut } = useAuth();
   const { showMessage } = useSnackbar();
   const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Cerrar el menú móvil cuando se cambia de ruta
   useEffect(() => {
     if (mobileOpen) {
       setMobileOpen(false);
     }
-  }, [location]);
+  }, [location, mobileOpen]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -122,33 +161,33 @@ const Layout: React.FC = () => {
   };
 
   const menuItems = [
-    { 
-      text: 'Panel', 
-      icon: <DashboardIcon />, 
+    {
+      text: 'Panel',
+      icon: <DashboardIcon />,
       path: '/',
       description: 'Vista general del sistema'
     },
-    { 
-      text: 'Contabilidad', 
-      icon: <AccountingIcon />, 
+    {
+      text: 'Contabilidad',
+      icon: <AccountingIcon />,
       path: '/accounting',
       description: 'Gestión financiera y reportes'
     },
-    { 
-      text: 'Inventario', 
-      icon: <InventoryIcon />, 
+    {
+      text: 'Inventario',
+      icon: <InventoryIcon />,
       path: '/inventory',
       description: 'Gestión de productos y stock'
     },
-    { 
-      text: 'Proveedores', 
-      icon: <SuppliersIcon />, 
+    {
+      text: 'Proveedores',
+      icon: <SuppliersIcon />,
       path: '/suppliers',
       description: 'Administración de proveedores'
     },
-    { 
-      text: 'Pedidos', 
-      icon: <OrdersIcon />, 
+    {
+      text: 'Pedidos',
+      icon: <OrdersIcon />,
       path: '/orders',
       description: 'Seguimiento de pedidos'
     },
@@ -164,17 +203,17 @@ const Layout: React.FC = () => {
       <Divider />
       <List>
         {menuItems.map((item) => (
-          <Tooltip 
-            key={item.text} 
-            title={item.description} 
+          <Tooltip
+            key={item.text}
+            title={item.description}
             placement="right"
             enterDelay={300}
             disableHoverListener={!isMobile}
             arrow
           >
-            <ListItem 
-              button 
-              component={RouterLink} 
+            <ListItem
+              button
+              component={RouterLink}
               to={item.path}
               sx={{
                 '&:hover': {
@@ -200,8 +239,8 @@ const Layout: React.FC = () => {
               }}
             >
               <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-              <ListItemText 
-                primary={item.text} 
+              <ListItemText
+                primary={item.text}
                 primaryTypographyProps={{
                   variant: 'body2',
                   fontWeight: 'medium',
@@ -240,7 +279,7 @@ const Layout: React.FC = () => {
             aria-label="abrir menú"
             onClick={handleDrawerToggle}
             edge="start"
-            sx={{ 
+            sx={{
               mr: 2,
               display: { xs: 'flex', md: 'none' },
               '&:hover': {
@@ -250,20 +289,20 @@ const Layout: React.FC = () => {
           >
             <MenuIcon />
           </IconButton>
-          
-          <Box 
-            component="div" 
-            sx={{ 
+
+          <Box
+            component="div"
+            sx={{
               display: 'flex',
               alignItems: 'center',
               flexGrow: 1,
             }}
           >
-            <Typography 
-              variant="h6" 
-              noWrap 
+            <Typography
+              variant="h6"
+              noWrap
               component="h1"
-              sx={{ 
+              sx={{
                 fontSize: { xs: '1.1rem', sm: '1.5rem' },
                 fontWeight: 600,
                 letterSpacing: '0.5px',
@@ -275,9 +314,9 @@ const Layout: React.FC = () => {
             >
               ClickStorm Manager
             </Typography>
-            
-            <Box 
-              sx={{ 
+
+            <Box
+              sx={{
                 display: { xs: 'none', md: 'flex' },
                 alignItems: 'center',
                 ml: 3,
@@ -307,16 +346,16 @@ const Layout: React.FC = () => {
               ))}
             </Box>
           </Box>
-          
+
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip 
-              title={currentUser?.email || 'Usuario'} 
+            <Tooltip
+              title={currentUser?.email || 'Usuario'}
               placement="bottom"
               arrow
             >
-              <Box 
-                sx={{ 
-                  display: 'flex', 
+              <Box
+                sx={{
+                  display: 'flex',
                   alignItems: 'center',
                   cursor: 'pointer',
                   p: 0.5,
@@ -327,9 +366,9 @@ const Layout: React.FC = () => {
                 }}
               >
                 <AccountCircleIcon sx={{ mr: 1 }} />
-                <Typography 
+                <Typography
                   variant="subtitle2"
-                  sx={{ 
+                  sx={{
                     display: { xs: 'none', sm: 'block' },
                     fontSize: '0.8rem',
                     maxWidth: 150,
@@ -347,42 +386,23 @@ const Layout: React.FC = () => {
       </AppBarStyled>
       <Box
         component="nav"
-        sx={{ 
-          width: { md: drawerWidth }, 
-          flexShrink: { md: 0 },
+        sx={{
+          flexShrink: { sm: 0 },
           zIndex: theme.zIndex.drawer + 1
         }}
         aria-label="menú de navegación"
       >
-        {/* Drawer para móviles */}
+        {/* Drawer responsivo */}
         <StyledDrawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
+          variant={isXs ? 'temporary' : 'permanent'}
+          open={isXs ? mobileOpen : true}
+          onClose={isXs ? handleDrawerToggle : undefined}
           ModalProps={{
-            keepMounted: true, // Mejor rendimiento en móviles
+            keepMounted: true,
           }}
           sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              backgroundColor: theme.palette.background.paper,
-              borderRight: `1px solid ${theme.palette.divider}`
-            },
-          }}
-        >
-          {drawer}
-        </StyledDrawer>
-        
-        {/* Drawer para escritorio */}
-        <StyledDrawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
               backgroundColor: theme.palette.background.paper,
               borderRight: `1px solid ${theme.palette.divider}`,
               position: 'relative',
@@ -390,7 +410,6 @@ const Layout: React.FC = () => {
               overflowY: 'auto'
             },
           }}
-          open
         >
           {drawer}
         </StyledDrawer>
@@ -399,8 +418,18 @@ const Layout: React.FC = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          width: {
+            xs: '100%',
+            sm: `calc(100% - ${drawerConfig.width.sm}px)`,
+            md: `calc(100% - ${drawerConfig.width.md}px)`,
+            lg: `calc(100% - ${drawerConfig.width.lg}px)`,
+          },
+          ml: {
+            xs: 0,
+            sm: `${drawerConfig.width.sm}px`,
+            md: `${drawerConfig.width.md}px`,
+            lg: `${drawerConfig.width.lg}px`,
+          },
           mt: '64px',
           minHeight: 'calc(100vh - 64px)',
           display: 'flex',
@@ -418,7 +447,7 @@ const Layout: React.FC = () => {
         >
           <Outlet />
         </Box>
-        
+
         {/* Footer */}
         <Box
           component="footer"
@@ -445,31 +474,31 @@ const Layout: React.FC = () => {
           >
             <span>© {new Date().getFullYear()} ClickStorm Manager</span>
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Typography 
-                component="a" 
-                href="#" 
-                variant="body2" 
+              <Typography
+                component="a"
+                href="#"
+                variant="body2"
                 color="text.secondary"
                 sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
               >
                 Términos de servicio
               </Typography>
-              <Typography 
-                component="a" 
-                href="#" 
-                variant="body2" 
+              <Typography
+                component="a"
+                href="#"
+                variant="body2"
                 color="text.secondary"
                 sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
               >
                 Política de privacidad
               </Typography>
-              <Typography 
-                component="a" 
-                href="#" 
-                variant="body2" 
+              <Typography
+                component="a"
+                href="#"
+                variant="body2"
                 color="text.secondary"
-                sx={{ 
-                  textDecoration: 'none', 
+                sx={{
+                  textDecoration: 'none',
                   '&:hover': { textDecoration: 'underline' },
                   display: 'flex',
                   alignItems: 'center',
@@ -477,10 +506,10 @@ const Layout: React.FC = () => {
                 }}
               >
                 <span>Versión</span>
-                <Chip 
-                  label="1.0.0" 
-                  size="small" 
-                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }} 
+                <Chip
+                  label="1.0.0"
+                  size="small"
+                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }}
                 />
               </Typography>
             </Box>
