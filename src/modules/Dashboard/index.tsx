@@ -1,9 +1,9 @@
 import React from 'react';
-import { 
-  Box, 
-  Grid, 
-  Paper, 
-  Typography, 
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
   useTheme,
   Card,
   CardContent,
@@ -70,8 +70,8 @@ const Dashboard: React.FC = () => {
               {title}
             </Typography>
             <Typography variant="h5">{value}</Typography>
-            <Typography 
-              variant="caption" 
+            <Typography
+              variant="caption"
               color={isPositive ? 'success.main' : 'error.main'}
               sx={{ display: 'flex', alignItems: 'center', mt: 1 }}
             >
@@ -141,14 +141,14 @@ const Dashboard: React.FC = () => {
                     <ListItemIcon>
                       <LowStockIcon color="action" />
                     </ListItemIcon>
-                    <ListItemText 
-                      primary={item.name} 
-                      secondary={`${item.current} in stock (min: ${item.min})`} 
+                    <ListItemText
+                      primary={item.name}
+                      secondary={`${item.current} in stock (min: ${item.min})`}
                     />
                     <Box width={100} ml={2}>
-                      <LinearProgress 
-                        variant="determinate" 
-                        value={(item.current / item.min) * 100} 
+                      <LinearProgress
+                        variant="determinate"
+                        value={(item.current / item.min) * 100}
                         color="warning"
                       />
                     </Box>
@@ -170,12 +170,12 @@ const Dashboard: React.FC = () => {
               {recentOrders.map((order) => (
                 <React.Fragment key={order.id}>
                   <ListItem button onClick={() => navigate(`/orders/${order.id}`)}>
-                    <ListItemText 
-                      primary={order.customer} 
-                      secondary={`Order #${order.id} • ${order.amount}`} 
+                    <ListItemText
+                      primary={order.customer}
+                      secondary={`Order #${order.id} • ${order.amount}`}
                     />
-                    <Typography 
-                      variant="caption" 
+                    <Typography
+                      variant="caption"
                       color={order.status === 'Delivered' ? 'success.main' : 'text.secondary'}
                       sx={{
                         p: 0.5,
@@ -201,10 +201,10 @@ const Dashboard: React.FC = () => {
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
               <Grid item xs={6}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    p: 2, 
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
                     textAlign: 'center',
                     border: '1px solid',
                     borderColor: 'divider',
@@ -218,10 +218,10 @@ const Dashboard: React.FC = () => {
                 </Paper>
               </Grid>
               <Grid item xs={6}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    p: 2, 
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
                     textAlign: 'center',
                     border: '1px solid',
                     borderColor: 'divider',
@@ -235,10 +235,10 @@ const Dashboard: React.FC = () => {
                 </Paper>
               </Grid>
               <Grid item xs={6}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    p: 2, 
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
                     textAlign: 'center',
                     border: '1px solid',
                     borderColor: 'divider',
@@ -252,10 +252,10 @@ const Dashboard: React.FC = () => {
                 </Paper>
               </Grid>
               <Grid item xs={6}>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    p: 2, 
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
                     textAlign: 'center',
                     border: '1px solid',
                     borderColor: 'divider',
