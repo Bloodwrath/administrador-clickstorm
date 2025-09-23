@@ -1,22 +1,22 @@
-import { 
-  Box, 
-  Button, 
-  TextField, 
+import {
+  Box,
+  Button,
+  TextField,
   FormControl,
   Checkbox,
   FormControlLabel,
-  InputLabel, 
-  Select, 
-  MenuItem, 
-  Typography, 
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
   Grid,
   InputAdornment,
   Divider,
   Tooltip,
   IconButton
 } from '@mui/material';
-import { 
-  Save as SaveIcon, 
+import {
+  Save as SaveIcon,
   CameraAlt as CameraIcon,
   QrCode as QrCodeIcon,
   LocationOn as LocationOnIcon
@@ -30,11 +30,11 @@ import { useAuth } from '../../context/AuthContext';
 import { proveedorService } from '../../services/firebaseService';
 
 // Import types and constants
-import { 
-  Producto, 
-  PrecioCantidad, 
+import {
+  Producto,
+  PrecioCantidad,
   Dimensiones,
-  CATEGORIAS_SUBLIMACION 
+  CATEGORIAS_SUBLIMACION
 } from '../../types/inventory';
 
 // Form data type that extends Producto with form-specific fields
@@ -71,22 +71,22 @@ const defaultValues: ProductoFormData = {
   nombre: '',
   codigoBarras: '',
   descripcion: '',
-  
+
   // Categories
   categoriaId: '',
   categoria: '',
   subcategoria: '',
-  
+
   // Provider
   proveedorId: '',
   registrarComoCompra: true, // Default to true for new products
   proveedor: '',
-  
+
   // Product type and classification
   tipo: 'venta',
   etiquetas: '',
   ubicacion: '',
-  
+
   // Prices
   precios: [
     { cantidadMinima: 1, precio: 0, tipo: 'menudeo' },
@@ -95,7 +95,7 @@ const defaultValues: ProductoFormData = {
   precioMenudeo: 0,
   precioMayoreo: 0,
   cantidadMinimaMayoreo: 10,
-  
+
   // Product dimensions
   dimensiones: {
     ancho: 0,
@@ -103,7 +103,7 @@ const defaultValues: ProductoFormData = {
     profundidad: 0,
     unidad: 'cm' as const
   },
-  
+
   // Sublimation area (optional)
   dimensionesSublimacion: {
     ancho: 0,
@@ -113,24 +113,24 @@ const defaultValues: ProductoFormData = {
     notas: ''
   },
   esPersonalizable: false,
-  
+
   // Material and inventory
   material: '',
   stock: 0,
   stockMinimo: 0,
   stockMaximo: 0,
-  
+
   // Financial
   moneda: 'MXN',
   costo: 0,
   costoProduccion: 0,
   costoTotal: 0,
   costoUnitarioCalculado: 0,
-  
+
   // Images and status
   imagenes: [],
   activo: true,
-  
+
   // Audit
   creadoPor: '',
   fechaCreacion: new Date(),
@@ -145,10 +145,10 @@ export interface ProductFormProps {
   initialData?: Partial<ProductoFormData>;
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ 
-  onSubmit, 
-  isEdit, 
-  initialData = {} 
+const ProductForm: React.FC<ProductFormProps> = ({
+  onSubmit,
+  isEdit,
+  initialData = {}
 }) => {
   // Hooks
   const navigate = useNavigate();
@@ -157,9 +157,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [proveedores, setProveedores] = useState<Array<{id: string, nombre: string}>>([]);
+  const [proveedores, setProveedores] = useState<Array<{ id: string, nombre: string }>>([]);
   const [isLoadingProveedores, setIsLoadingProveedores] = useState(true);
-  
+
   // Cargar proveedores al montar el componente
   useEffect(() => {
     const cargarProveedores = async () => {
@@ -177,45 +177,45 @@ const ProductForm: React.FC<ProductFormProps> = ({
         setIsLoadingProveedores(false);
       }
     };
-    
+
     cargarProveedores();
   }, [enqueueSnackbar]);
-  
-  const { 
-    register, 
-    handleSubmit, 
+
+  const {
+    register,
+    handleSubmit,
     watch,
     setValue,
     formState: { errors, isSubmitting }
   } = useForm<ProductoFormData>({
-    defaultValues: isEdit ? { 
-      ...defaultValues, 
+    defaultValues: isEdit ? {
+      ...defaultValues,
       ...initialData,
       precios: initialData.precios ?? [
-        { 
-          cantidadMinima: 1, 
-          precio: initialData.precioMenudeo ?? 0, 
+        {
+          cantidadMinima: 1,
+          precio: initialData.precioMenudeo ?? 0,
           tipo: 'menudeo' as const
         },
-        { 
-          cantidadMinima: initialData.cantidadMinimaMayoreo ?? 10, 
-          precio: initialData.precioMayoreo ?? 0, 
+        {
+          cantidadMinima: initialData.cantidadMinimaMayoreo ?? 10,
+          precio: initialData.precioMayoreo ?? 0,
           tipo: 'mayoreo' as const
         }
       ]
-    } : defaultValues 
+    } : defaultValues
   });
 
   // Watch for changes in form fields
   const watchCostoTotal = watch('costoTotal');
   const watchStock = watch('stock');
-  
+
   // Calculate unit cost whenever total cost or stock changes
   useEffect(() => {
     const costoTotal = typeof watchCostoTotal === 'number' ? watchCostoTotal : parseFloat(watchCostoTotal || '0');
     const stock = typeof watchStock === 'number' ? watchStock : parseFloat(watchStock || '1');
     const costoUnitario = stock > 0 ? costoTotal / stock : 0;
-    
+
     setValue('costoUnitarioCalculado', parseFloat(costoUnitario.toFixed(2)), { shouldValidate: true });
     setValue('costo', costoTotal, { shouldValidate: true }); // For backward compatibility
   }, [watchCostoTotal, watchStock, setValue]);
@@ -238,16 +238,16 @@ const ProductForm: React.FC<ProductFormProps> = ({
     }
 
     setIsUploading(true);
-    
+
     // Get current images
     const currentImages = watch('imagenes') || [];
-    
+
     // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       const imageUrl = e.target?.result as string;
       setPreviewImage(imageUrl);
-      
+
       // Add to form
       const newImage = {
         id: Date.now().toString(),
@@ -257,14 +257,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
         orden: currentImages.length,
         esPrincipal: currentImages.length === 0 // First image is principal
       };
-      
+
       setValue('imagenes', [...currentImages, newImage], { shouldValidate: true });
       setIsUploading(false);
     };
-    
+
     reader.readAsDataURL(file);
   };
-  
+
   // Remove image
   const handleRemoveImage = () => {
     setPreviewImage(null);
@@ -277,25 +277,25 @@ const ProductForm: React.FC<ProductFormProps> = ({
   const watchPrecioMayoreo = watch('precioMayoreo');
   const watchCantidadMinimaMayoreo = watch('cantidadMinimaMayoreo');
   const watchPrecios = watch('precios');
-  
+
   // Update precios array when prices or quantities change
   useEffect(() => {
     const newPrecioMenudeo = typeof watchPrecioMenudeo === 'string' ? parseFloat(watchPrecioMenudeo) : watchPrecioMenudeo || 0;
     const newPrecioMayoreo = typeof watchPrecioMayoreo === 'string' ? parseFloat(watchPrecioMayoreo) : watchPrecioMayoreo || 0;
     const newCantidadMinima = typeof watchCantidadMinimaMayoreo === 'string' ? parseInt(watchCantidadMinimaMayoreo, 10) : watchCantidadMinimaMayoreo || 10;
-    
+
     // Only update if values have actually changed
     const currentPrecios = watchPrecios || [];
     const currentMenudeo = currentPrecios.find(p => p.tipo === 'menudeo');
     const currentMayoreo = currentPrecios.find(p => p.tipo === 'mayoreo');
-    
-    const menudeoChanged = !currentMenudeo || 
+
+    const menudeoChanged = !currentMenudeo ||
       Math.abs(currentMenudeo.precio - newPrecioMenudeo) > 0.001;
-      
-    const mayoreoChanged = !currentMayoreo || 
+
+    const mayoreoChanged = !currentMayoreo ||
       currentMayoreo.cantidadMinima !== newCantidadMinima ||
       Math.abs(currentMayoreo.precio - newPrecioMayoreo) > 0.001;
-    
+
     if (menudeoChanged || mayoreoChanged) {
       const precios = [
         {
@@ -315,6 +315,9 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
   const isFormSubmitting = isSubmitting || isLoading;
 
+  // Watch tipo de producto
+  const watchTipo = watch('tipo');
+
   const onSubmitForm = async (formData: ProductoFormData) => {
     if (!currentUser) {
       enqueueSnackbar('No se encontró el usuario actual', { variant: 'error' });
@@ -330,8 +333,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
       const costoUnitario = cantidad > 0 ? costoTotal / cantidad : 0;
 
       // Handle category - if 'otro' is selected, use the custom category name
-      const categoriaId = formData.categoriaId === 'otro' 
-        ? (formData.categoria || 'Otra Categoría') 
+      const categoriaId = formData.categoriaId === 'otro'
+        ? (formData.categoria || 'Otra Categoría')
         : formData.categoriaId;
 
       // Prepare dimensions data
@@ -360,8 +363,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
         // Handle category
         categoriaId,
         categoria: categoriaId, // For backward compatibility
-        // Handle prices
-        precios: [
+        // Handle prices based on product type
+        precios: formData.tipo === 'materia_prima' ? [] : [
           {
             cantidadMinima: 1,
             precio: parseFloat(formData.precioMenudeo?.toString() || '0'),
@@ -449,7 +452,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         <Typography variant="h4" component="h1">
           {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
         </Typography>
-        
+
         <Box>
           <input
             accept="image/*"
@@ -486,11 +489,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </label>
         </Box>
       </Box>
-      
+
       {/* Vista previa de la imagen */}
       {previewImage && (
         <Box mb={3} textAlign="center">
-          <Box 
+          <Box
             component="img"
             src={previewImage}
             alt="Vista previa"
@@ -515,7 +518,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           </Box>
         </Box>
       )}
-      
+
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <TextField
@@ -528,7 +531,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             helperText={errors.nombre?.message}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <FormControl fullWidth margin="normal">
             <InputLabel id="categoria-label">Categoría *</InputLabel>
@@ -558,7 +561,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               </Typography>
             )}
           </FormControl>
-          
+
           {watch('categoriaId') === 'otro' && (
             <TextField
               fullWidth
@@ -570,7 +573,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             />
           )}
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
@@ -581,7 +584,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             helperText="Ejemplo: 'Tazas de Cerámica', 'Playeras de Algodón', etc."
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
@@ -603,7 +606,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             }}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <FormControl fullWidth margin="normal">
             <InputLabel id="tipo-producto-label">Tipo de Producto</InputLabel>
@@ -625,7 +628,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             )}
           </FormControl>
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <FormControl fullWidth margin="normal">
             <InputLabel id="proveedor-label">Proveedor (opcional)</InputLabel>
@@ -665,7 +668,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             helperText={errors.descripcion?.message}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
@@ -693,7 +696,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Dimensiones del Producto</Typography>
           <Divider sx={{ mb: 2 }} />
         </Grid>
-        
+
         <Grid item xs={12} md={3}>
           <TextField
             fullWidth
@@ -709,7 +712,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             helperText="Ancho del producto"
           />
         </Grid>
-        
+
         <Grid item xs={12} md={3}>
           <TextField
             fullWidth
@@ -725,7 +728,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             helperText="Alto del producto"
           />
         </Grid>
-        
+
         <Grid item xs={12} md={3}>
           <TextField
             fullWidth
@@ -741,7 +744,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             helperText="Profundidad del producto (opcional)"
           />
         </Grid>
-        
+
         <Grid item xs={12} md={3}>
           <FormControl fullWidth margin="normal">
             <InputLabel id="unidad-dimensiones-label">Unidad</InputLabel>
@@ -758,7 +761,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </Select>
           </FormControl>
         </Grid>
-        
+
         {/* Sección de Dimensiones del Área de Sublimación */}
         <Grid item xs={12}>
           <FormControlLabel
@@ -783,14 +786,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
             label="Este producto es personalizable (tiene área de sublimación)"
           />
         </Grid>
-        
+
         {(watch('esPersonalizable') as boolean) && (
           <>
             <Grid item xs={12}>
               <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Área de Sublimación</Typography>
               <Divider sx={{ mb: 2 }} />
             </Grid>
-            
+
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
@@ -806,7 +809,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 helperText="Ancho del área imprimible"
               />
             </Grid>
-            
+
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
@@ -822,7 +825,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 helperText="Alto del área imprimible"
               />
             </Grid>
-            
+
             <Grid item xs={12} md={3}>
               <FormControl fullWidth margin="normal">
                 <InputLabel id="forma-sublimacion-label">Forma del área</InputLabel>
@@ -840,7 +843,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 </Select>
               </FormControl>
             </Grid>
-            
+
             <Grid item xs={12} md={3}>
               <FormControl fullWidth margin="normal">
                 <InputLabel id="unidad-sublimacion-label">Unidad</InputLabel>
@@ -857,7 +860,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 </Select>
               </FormControl>
             </Grid>
-            
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -872,68 +875,79 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </Grid>
           </>
         )}
-        
+
         {/* Sección de Precios */}
         <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Precios de Venta</Typography>
-          <Divider sx={{ mb: 2 }} />
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Precio de Menudeo"
-            type="number"
-            variant="outlined"
-            margin="normal"
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              inputProps: { min: 0, step: '0.01' },
-            }}
-            {...register('precioMenudeo', { 
-              required: 'El precio de menudeo es requerido',
-              min: { value: 0.01, message: 'El precio debe ser mayor a 0' }
-            })}
-            error={!!errors.precioMenudeo}
-            helperText={errors.precioMenudeo?.message}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Precio de Mayoreo"
-            type="number"
-            variant="outlined"
-            margin="normal"
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              inputProps: { min: 0, step: '0.01' },
-            }}
-            {...register('precioMayoreo', { 
-              required: 'El precio de mayoreo es requerido',
-              min: { value: 0.01, message: 'El precio debe ser mayor a 0' }
-            })}
-            error={!!errors.precioMayoreo}
-            helperText={errors.precioMayoreo?.message}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={4}>
-          <TextField
-            fullWidth
-            label="Cantidad Mínima para Mayoreo"
-            type="number"
-            variant="outlined"
-            margin="normal"
-            inputProps={{ min: 2, step: '1' }}
-            {...register('cantidadMinimaMayoreo', { 
-              required: 'La cantidad mínima es requerida',
-              min: { value: 2, message: 'La cantidad debe ser al menos 2' }
-            })}
-            error={!!errors.cantidadMinimaMayoreo}
-            helperText={errors.cantidadMinimaMayoreo?.message}
-          />
+          <Box>
+            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Precios de Venta</Typography>
+            {watchTipo === 'materia_prima' ? (
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                Las materias primas no tienen precios de venta ya que solo se utilizan para la producción.
+              </Typography>
+            ) : (
+              <>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Precio de Menudeo"
+                      type="number"
+                      variant="outlined"
+                      margin="normal"
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                        inputProps: { min: 0, step: '0.01' },
+                      }}
+                      {...register('precioMenudeo', {
+                        required: 'El precio de menudeo es requerido',
+                        min: { value: 0.01, message: 'El precio debe ser mayor a 0' }
+                      })}
+                      error={!!errors.precioMenudeo}
+                      helperText={errors.precioMenudeo?.message}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Precio de Mayoreo"
+                      type="number"
+                      variant="outlined"
+                      margin="normal"
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                        inputProps: { min: 0, step: '0.01' },
+                      }}
+                      {...register('precioMayoreo', {
+                        required: 'El precio de mayoreo es requerido',
+                        min: { value: 0.01, message: 'El precio debe ser mayor a 0' }
+                      })}
+                      error={!!errors.precioMayoreo}
+                      helperText={errors.precioMayoreo?.message}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Cantidad Mínima para Mayoreo"
+                      type="number"
+                      variant="outlined"
+                      margin="normal"
+                      inputProps={{ min: 2, step: '1' }}
+                      {...register('cantidadMinimaMayoreo', {
+                        required: 'La cantidad mínima es requerida',
+                        min: { value: 2, message: 'La cantidad debe ser al menos 2' }
+                      })}
+                      error={!!errors.cantidadMinimaMayoreo}
+                      helperText={errors.cantidadMinimaMayoreo?.message}
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            )}
+            <Divider sx={{ mb: 2 }} />
+          </Box>
         </Grid>
 
         {/* Sección de Inventario */}
@@ -941,7 +955,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Inventario</Typography>
           <Divider sx={{ mb: 2 }} />
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <TextField
             fullWidth
@@ -950,7 +964,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             variant="outlined"
             margin="normal"
             inputProps={{ min: 0, step: '1' }}
-            {...register('stock', { 
+            {...register('stock', {
               required: 'La cantidad es requerida',
               min: { value: 0, message: 'La cantidad no puede ser negativa' },
               valueAsNumber: true
@@ -968,7 +982,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             variant="outlined"
             margin="normal"
             inputProps={{ min: 0, step: '1' }}
-            {...register('stockMinimo', { 
+            {...register('stockMinimo', {
               required: 'El stock mínimo es requerido',
               min: { value: 0, message: 'El stock mínimo no puede ser negativo' },
               valueAsNumber: true
@@ -986,14 +1000,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
             variant="outlined"
             margin="normal"
             inputProps={{ min: 1, step: '1' }}
-            {...register('stockMaximo', { 
+            {...register('stockMaximo', {
               required: 'El stock máximo es requerido',
-              min: { 
-                value: 1, 
-                message: 'El stock máximo debe ser mayor a 0' 
+              min: {
+                value: 1,
+                message: 'El stock máximo debe ser mayor a 0'
               },
-              validate: (value) => 
-                value >= watch('stockMinimo') || 
+              validate: (value) =>
+                value >= watch('stockMinimo') ||
                 'El stock máximo debe ser mayor o igual al stock mínimo',
               valueAsNumber: true
             })}
@@ -1007,7 +1021,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Costos</Typography>
           <Divider sx={{ mb: 2 }} />
         </Grid>
-        
+
         <Grid container spacing={2}>
           <Grid item xs={12} md={4}>
             <TextField
@@ -1020,7 +1034,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 startAdornment: <InputAdornment position="start">$</InputAdornment>,
                 inputProps: { min: 0, step: '0.01' },
               }}
-              {...register('costoTotal', { 
+              {...register('costoTotal', {
                 required: 'El costo total es requerido',
                 min: { value: 0, message: 'El costo no puede ser negativo' },
                 valueAsNumber: true
@@ -1029,7 +1043,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               helperText={errors.costoTotal?.message}
             />
           </Grid>
-          
+
           <Grid item xs={12} md={4}>
             <TextField
               fullWidth
@@ -1046,7 +1060,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               helperText="Calculado automáticamente"
             />
           </Grid>
-          
+
           {!isEdit && (
             <Grid item xs={12} md={4} sx={{ display: 'flex', alignItems: 'center' }}>
               <FormControlLabel
@@ -1063,7 +1077,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
             </Grid>
           )}
         </Grid>
-        
+
         <Grid item xs={12} md={4}>
           <TextField
             variant="outlined"
@@ -1072,7 +1086,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
               startAdornment: <InputAdornment position="start">$</InputAdornment>,
               inputProps: { min: 0, step: '0.01' },
             }}
-            {...register('costo', { 
+            {...register('costo', {
               required: 'El costo es requerido',
               min: { value: 0, message: 'El costo debe ser mayor o igual a 0' }
             })}

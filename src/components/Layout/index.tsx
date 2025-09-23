@@ -130,6 +130,7 @@ const AppBarStyled = styled(AppBar, {
 const Layout: React.FC = () => {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentUser, signOut } = useAuth();
   const { showMessage } = useSnackbar();
@@ -138,12 +139,13 @@ const Layout: React.FC = () => {
 
   // Cerrar el menú móvil cuando se cambia de ruta
   useEffect(() => {
-    if (mobileOpen) {
-      setMobileOpen(false);
+    if (isMobile && drawerOpen) {
+      setDrawerOpen(false);
     }
-  }, [location, mobileOpen]);
+  }, [location, drawerOpen, isMobile]);
 
   const handleDrawerToggle = () => {
+    setDrawerOpen(!drawerOpen);
     setMobileOpen(!mobileOpen);
   };
 
@@ -342,9 +344,9 @@ const Layout: React.FC = () => {
       >
         {/* Drawer responsivo */}
         <StyledDrawer
-          variant={isXs ? 'temporary' : 'permanent'}
-          open={isXs ? mobileOpen : true}
-          onClose={isXs ? handleDrawerToggle : undefined}
+          variant={isMobile ? 'temporary' : 'persistent'}
+          open={drawerOpen}
+          onClose={handleDrawerToggle}
           ModalProps={{
             keepMounted: true,
           }}
@@ -355,7 +357,8 @@ const Layout: React.FC = () => {
               borderRight: `1px solid ${theme.palette.divider}`,
               position: 'relative',
               height: '100vh',
-              overflowY: 'auto'
+              overflowY: 'auto',
+              width: drawerOpen ? drawerWidth : 0
             },
           }}
         >

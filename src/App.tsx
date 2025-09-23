@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CssBaseline, useTheme, CircularProgress } from '@mui/material';
 import { useAuth } from './context/AuthContext';
+import { productoService } from './services/firebaseService';
 import Layout from './components/Layout';
 import { NotFound, TestConnection } from './components';
 import Dashboard from './modules/Dashboard';
@@ -53,9 +54,24 @@ const App: React.FC = () => {
           <Route path="inventario/*" element={<Routes>
             <Route index element={<Inventory />} />
             <Route path="nuevo" element={<ProductForm onSubmit={async (data) => {
-              // Esta función será reemplazada por la lógica real de guardado
-              console.log('Guardando producto:', data);
-              return Promise.resolve();
+              try {
+                const productoData = {
+                  ...data,
+                  historialPrecios: [],
+                  etiquetas: data.etiquetas ? data.etiquetas.split(',').map(tag => tag.trim()) : [],
+                  activo: true,
+                  dimensionesSublimacion: data.dimensionesSublimacion ? {
+                    ...data.dimensionesSublimacion,
+                    ancho: Number(data.dimensionesSublimacion.ancho),
+                    alto: Number(data.dimensionesSublimacion.alto)
+                  } : undefined
+                };
+                await productoService.crearProducto(productoData);
+                return Promise.resolve();
+              } catch (error) {
+                console.error('Error al crear producto:', error);
+                throw error;
+              }
             }} isEdit={false} />} />
             <Route path="editar/:id" element={<ProductForm onSubmit={async (data) => {
               // Esta función será reemplazada por la lógica real de actualización

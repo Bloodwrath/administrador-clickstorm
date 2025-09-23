@@ -43,7 +43,7 @@ export interface ImagenProducto {
   esPrincipal: boolean;
 }
 
-export type TipoProducto = 'venta' | 'produccion' | 'paquete' | 'venta_produccion';
+export type TipoProducto = 'venta' | 'produccion' | 'paquete' | 'venta_produccion' | 'materia_prima';
 
 export interface PrecioCantidad {
   cantidadMinima: number;

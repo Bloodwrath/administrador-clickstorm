@@ -38,6 +38,7 @@ import DataTable from '../../components/shared/DataTable';
 
 // Types
 import { Producto } from '../../types/inventory';
+import { GridValueFormatterParams, GridValueGetterParams } from '@mui/x-data-grid';
 
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = false }) => {
   const navigate = useNavigate();
@@ -167,20 +168,47 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
       field: 'nombre',
       headerName: 'Nombre',
       flex: 2,
-      minWidth: 200,
-      renderCell: (params: any) => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {params.row.imageRefs?.length > 0 && (
-              <ImageIcon fontSize="small" color="action" titleAccess="Con imagen" />
-            )}
-            <span>{params.row.nombre}</span>
-          </Box>
-          <Typography variant="caption" color="textSecondary">
-            {params.row.codigoBarras}
-          </Typography>
-        </Box>
-      )
+      minWidth: 200
+    },
+    {
+      field: 'stock',
+      headerName: 'Stock',
+      type: 'number',
+      width: 100
+    },
+    {
+      field: 'costoUnitarioCalculado',
+      headerName: 'Costo Unitario',
+      type: 'number',
+      width: 130,
+      valueFormatter: (params: GridValueFormatterParams) => {
+        const value = params.value || 0;
+        return `$${value.toFixed(2)}`;
+      }
+    },
+    {
+      field: 'precios',
+      headerName: 'Precio Mayoreo',
+      width: 130,
+      valueGetter: (params: GridValueGetterParams) => {
+        const precioMayoreo = params.row.precios.find((p: any) => p.tipo === 'mayoreo');
+        return precioMayoreo ? precioMayoreo.precio : 0;
+      },
+      valueFormatter: (params: GridValueFormatterParams) => {
+        return `$${params.value.toFixed(2)}`;
+      }
+    },
+    {
+      field: 'precioMenudeo',
+      headerName: 'Precio Menudeo',
+      width: 130,
+      valueGetter: (params: GridValueGetterParams) => {
+        const precioMenudeo = params.row.precios.find((p: any) => p.tipo === 'menudeo');
+        return precioMenudeo ? precioMenudeo.precio : 0;
+      },
+      valueFormatter: (params: GridValueFormatterParams) => {
+        return `$${params.value.toFixed(2)}`;
+      }
     },
     {
       field: 'categoriaId',
