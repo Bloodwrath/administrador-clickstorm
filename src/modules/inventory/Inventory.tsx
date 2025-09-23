@@ -21,7 +21,6 @@ import {
 import {
   Add as AddIcon,
   Save as SaveIcon,
-  Image as ImageIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   Search as SearchIcon

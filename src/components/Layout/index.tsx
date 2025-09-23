@@ -129,7 +129,6 @@ const AppBarStyled = styled(AppBar, {
 
 const Layout: React.FC = () => {
   const theme = useTheme();
-  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentUser, signOut } = useAuth();
