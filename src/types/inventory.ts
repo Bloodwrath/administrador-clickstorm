@@ -7,8 +7,9 @@ import { Timestamp } from 'firebase/firestore';
 export interface Dimensiones {
   ancho: number;
   alto: number;
-  profundidad?: number;
+  profundidad: number;
   unidad: 'cm' | 'pulgadas' | 'mm';
+  volumen?: number; // Calculado automáticamente
 }
 
 export interface DimensionesSublimacion {
@@ -42,7 +43,7 @@ export interface ImagenProducto {
   esPrincipal: boolean;
 }
 
-export type TipoProducto = 'venta' | 'produccion' | 'paquete';
+export type TipoProducto = 'venta' | 'produccion' | 'paquete' | 'venta_produccion';
 
 export interface PrecioCantidad {
   cantidadMinima: number;
@@ -63,7 +64,7 @@ export interface Producto {
   sku?: string; // For backward compatibility
   nombre: string;
   descripcion: string;
-  
+
   // Categorización
   categoriaId: string;
   categoria?: string; // For backward compatibility
@@ -73,39 +74,47 @@ export interface Producto {
   tipo: TipoProducto;
   etiquetas: string[];
   ubicacion?: string; // Ubicación física en el almacén
-  
+
   // Especificaciones
   dimensiones: Dimensiones;
   dimensionesSublimacion?: DimensionesSublimacion; // Nuevo campo para dimensiones del área de sublimación
   material: string;
-  
+
   // Inventario
   stock: number;
   stockMinimo: number;
   stockMaximo: number;
-  
+
   // Precios y costos
   precios: PrecioCantidad[];
   moneda: string;
   costo: number;
   costoProduccion?: number;
   historialPrecios: PrecioHistorico[];
-  
+
+  // Componentes y costos
+  componentes?: {
+    productoId: string;
+    cantidad: number;
+    costoUnitario: number;
+  }[];
+  costoComponentes?: number; // Suma del costo de todos los componentes
+
   // Solo para paquetes
   itemsPaquete?: PaqueteItem[];
-  
+
   // Imágenes
   imagenes: ImagenProducto[];
   hasImage?: boolean;
-  
+
   // Estado
   activo: boolean;
-  
+
   // Auditoría
   creadoPor: string; // ID del usuario
   fechaCreacion: Date | any;
   fechaActualizacion: Date | any;
-  
+
   // Notas adicionales
   notas?: string;
 }

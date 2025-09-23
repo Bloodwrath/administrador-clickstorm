@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Theme } from '@mui/material/styles';
 import { 
   Box, 
   Typography, 
@@ -15,7 +16,8 @@ import {
   DialogActions,
   Tooltip, 
   IconButton, 
-  InputAdornment
+  InputAdornment,
+  useTheme
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -40,8 +42,30 @@ import { Product } from '../../services/products';
 import { Producto } from '../../types/inventory';
 
 // Lista de productos con acciones
+const useStyles = (theme: Theme) => ({
+  dataGrid: {
+    border: 'none',
+    '& .MuiDataGrid-cell': {
+      borderBottom: `1px solid ${theme.palette.divider}`,
+    },
+    '& .MuiDataGrid-columnHeaders': {
+      backgroundColor: theme.palette.background.paper,
+      borderBottom: `1px solid ${theme.palette.divider}`,
+    },
+    '& .MuiDataGrid-footerContainer': {
+      borderTop: `1px solid ${theme.palette.divider}`,
+    },
+    '& .MuiDataGrid-toolbarContainer': {
+      padding: theme.spacing(2),
+      backgroundColor: 'transparent',
+    },
+  },
+});
+
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = false }) => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const classes = useStyles(theme);
   const { showMessage } = useSnackbar();
   const [rows, setRows] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');
@@ -51,46 +75,44 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   
   // Función para mapear de Product a Producto
-  const mapProductToProducto = (product: Product): Producto => {
-    // Crear un objeto base con las propiedades comunes
-    const baseProduct: Partial<Producto> = {
+  const mapProductToProducto = (product: any): Producto => {
+    // Crear un objeto base con valores por defecto
+    const baseProduct: Producto = {
       id: product.id,
-      nombre: product.nombre,
-      codigoBarras: product.codigoBarras,
+      nombre: product.nombre || 'Sin nombre',
+      codigoBarras: product.codigoBarras || `SKU-${Date.now()}`,
       descripcion: product.descripcion || '',
       categoriaId: product.categoriaId || '',
       proveedorId: product.proveedorId || '',
-      material: product.material || '',
-      stock: product.stock || 0,
-      stockMinimo: product.stockMinimo || 0,
-      stockMaximo: product.stockMaximo || 0,
+      material: product.material || 'No especificado',
+      stock: Number(product.stock) || 0,
+      stockMinimo: Number(product.stockMinimo) || 0,
+      stockMaximo: Number(product.stockMaximo) || 0,
       moneda: product.moneda || 'MXN',
-      costo: product.costo || 0,
-      costoProduccion: product.costoProduccion,
-      tipo: product.tipo as 'venta' | 'produccion' | 'paquete',
-      // Propiedades requeridas por Producto
-      dimensiones: {
+      costo: Number(product.costo) || 0,
+      costoProduccion: Number(product.costoProduccion) || 0,
+      tipo: product.tipo || 'venta',
+      dimensiones: product.dimensiones || {
         ancho: 0,
         alto: 0,
+        profundidad: 0,
         unidad: 'cm',
-        profundidad: 0
+        peso: 0,
+        unidadPeso: 'kg'
       },
-      imagenes: [],
-      etiquetas: [],
-      precios: product.precios || [],
-      historialPrecios: [],
-      activo: true,
-      creadoPor: 'system',
-      fechaCreacion: new Date(),
-      fechaActualizacion: new Date(),
-      // Otras propiedades opcionales
-      sku: product.codigoBarras,
-      categoria: product.categoriaId,
-      proveedor: product.proveedorId,
-      // Inicializar dimensionesSublimacion como indefinido
-      dimensionesSublimacion: undefined,
-      // Inicializar itemsPaquete si es un paquete
-      itemsPaquete: product.tipo === 'paquete' ? (product as any).itemsPaquete || [] : undefined
+      imagenes: Array.isArray(product.imagenes) ? product.imagenes : [],
+      etiquetas: Array.isArray(product.etiquetas) ? product.etiquetas : [],
+      precios: Array.isArray(product.precios) ? product.precios : [],
+      historialPrecios: Array.isArray(product.historialPrecios) ? product.historialPrecios : [],
+      activo: product.activo !== undefined ? product.activo : true,
+      creadoPor: product.creadoPor || 'sistema',
+      fechaCreacion: product.fechaCreacion ? new Date(product.fechaCreacion) : new Date(),
+      fechaActualizacion: product.fechaActualizacion ? new Date(product.fechaActualizacion) : new Date(),
+      sku: product.sku || product.codigoBarras || `SKU-${Date.now()}`,
+      categoria: product.categoria || product.categoriaId || '',
+      proveedor: product.proveedor || product.proveedorId || '',
+      dimensionesSublimacion: product.dimensionesSublimacion || undefined,
+      itemsPaquete: product.tipo === 'paquete' ? (product.itemsPaquete || []) : undefined
     };
 
     return baseProduct as Producto;
@@ -140,6 +162,31 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
 
   // Columnas de la tabla
   const columns = [
+    { 
+      field: 'imagen',
+      headerName: 'Imagen',
+      width: 80,
+      sortable: false,
+      filterable: false,
+      renderCell: (params: any) => (
+        <Box
+          component="img"
+          src={params.row.imagenes?.[0]?.url || '/placeholder-product.png'}
+          alt={params.row.nombre}
+          sx={{
+            width: 40,
+            height: 40,
+            objectFit: 'cover',
+            borderRadius: 1,
+            backgroundColor: 'grey.100'
+          }}
+          onError={(e: any) => {
+            e.target.onerror = null;
+            e.target.src = '/placeholder-product.png';
+          }}
+        />
+      ),
+    },
     { 
       field: 'nombre', 
       headerName: 'Nombre', 
@@ -219,14 +266,20 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
       width: 120,
       sortable: false,
       filterable: false,
-      hideable: false,
       renderCell: (params: any) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Tooltip title="Editar">
             <IconButton
               size="small"
-              onClick={() => navigate(`/inventory/edit/${params.row.id}`)}
               color="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/inventory/edit/${params.row.id}`);
+              }}
+              sx={{
+                '&:hover': { backgroundColor: 'primary.light', color: 'primary.contrastText' },
+                transition: 'all 0.2s ease-in-out'
+              }}
             >
               <EditIcon fontSize="small" />
             </IconButton>
@@ -234,8 +287,17 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
           <Tooltip title="Eliminar">
             <IconButton
               size="small"
-              onClick={() => handleDelete(params.row.id)}
               color="error"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm(`¿Estás seguro de que deseas eliminar el producto "${params.row.nombre}"?`)) {
+                  handleDelete(params.row.id);
+                }
+              }}
+              sx={{
+                '&:hover': { backgroundColor: 'error.light', color: 'error.contrastText' },
+                transition: 'all 0.2s ease-in-out'
+              }}
             >
               <DeleteIcon fontSize="small" />
             </IconButton>
@@ -415,14 +477,37 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
         </Box>
       </Box>
       
-      <DataTable
-        rows={filtered}
-        columns={columns}
-        loading={rows.length === 0}
-        title="Lista de Productos"
-        height="70vh"
-        withToolbar={true}
-      />
+      <Box sx={{ 
+        height: 'calc(100vh - 200px)',
+        width: '100%',
+        '& .MuiDataGrid-root': {
+          border: 'none',
+          '& .MuiDataGrid-cell': {
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          },
+          '& .MuiDataGrid-columnHeaders': {
+            backgroundColor: theme.palette.background.paper,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          },
+          '& .MuiDataGrid-footerContainer': {
+            borderTop: `1px solid ${theme.palette.divider}`,
+          },
+          '& .MuiDataGrid-toolbarContainer': {
+            padding: theme.spacing(1, 2),
+            backgroundColor: 'transparent',
+            borderBottom: `1px solid ${theme.palette.divider}`,
+          },
+        },
+      }}>
+        <DataTable
+          rows={filtered}
+          columns={columns}
+          loading={rows.length === 0}
+          title=""
+          height="100%"
+          withToolbar={true}
+        />
+      </Box>
       
       <Dialog 
         open={previewOpen} 
@@ -459,4 +544,6 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
   );
 };
 
-export default ProductList;
+const Inventory = () => <ProductList />;
+
+export default Inventory;

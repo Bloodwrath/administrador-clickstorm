@@ -5,11 +5,11 @@ import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import { NotFound, TestConnection } from './components';
 import Dashboard from './modules/Dashboard';
-import Accounting from './modules/accounting/Accounting';
-import Inventory from './modules/inventory/Inventory';
-import Orders from './modules/orders/Orders';
-import Login from './modules/auth/Login';
-import SignUp from './modules/auth/SignUp';
+import Accounting from './modules/accounting';
+import Inventory from './modules/inventory';
+import Orders from './modules/orders';
+import Suppliers from './modules/suppliers';
+import { Login, SignUp } from './modules/auth';
 
 const App: React.FC = () => {
   const { currentUser, loading } = useAuth();
@@ -50,6 +50,7 @@ const App: React.FC = () => {
           <Route index element={<Dashboard />} />
           <Route path="accounting/*" element={<Accounting />} />
           <Route path="inventory/*" element={<Inventory />} />
+          <Route path="suppliers/*" element={<Suppliers />} />
           <Route path="orders/*" element={<Orders />} />
           <Route path="test-connection" element={<TestConnection />} />
           <Route path="*" element={<NotFound />} />
