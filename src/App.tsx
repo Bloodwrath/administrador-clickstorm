@@ -7,6 +7,7 @@ import { NotFound, TestConnection } from './components';
 import Dashboard from './modules/Dashboard';
 import Accounting from './modules/accounting';
 import Inventory from './modules/inventory';
+import ProductForm from './modules/inventory/ProductForm';
 import Orders from './modules/orders';
 import Suppliers from './modules/suppliers';
 import { Login, SignUp } from './modules/auth';
@@ -49,7 +50,19 @@ const App: React.FC = () => {
         >
           <Route index element={<Dashboard />} />
           <Route path="accounting/*" element={<Accounting />} />
-          <Route path="inventory/*" element={<Inventory />} />
+          <Route path="inventario/*" element={<Routes>
+            <Route index element={<Inventory />} />
+            <Route path="nuevo" element={<ProductForm onSubmit={async (data) => {
+              // Esta función será reemplazada por la lógica real de guardado
+              console.log('Guardando producto:', data);
+              return Promise.resolve();
+            }} isEdit={false} />} />
+            <Route path="editar/:id" element={<ProductForm onSubmit={async (data) => {
+              // Esta función será reemplazada por la lógica real de actualización
+              console.log('Actualizando producto:', data);
+              return Promise.resolve();
+            }} isEdit={true} />} />
+          </Routes>} />
           <Route path="suppliers/*" element={<Suppliers />} />
           <Route path="orders/*" element={<Orders />} />
           <Route path="test-connection" element={<TestConnection />} />

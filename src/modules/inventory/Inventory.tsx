@@ -429,7 +429,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
             variant="contained"
             color="primary"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/inventory/new')}
+            onClick={() => navigate('/inventario/nuevo')}
             sx={{ ml: 1 }}
           >
             Nuevo Producto

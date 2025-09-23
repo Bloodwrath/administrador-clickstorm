@@ -228,7 +228,7 @@ const Dashboard: React.FC = () => {
                     cursor: 'pointer',
                     '&:hover': { bgcolor: 'action.hover' },
                   }}
-                  onClick={() => navigate('/inventory/add')}
+                  onClick={() => navigate('/inventario/nuevo')}
                 >
                   <InventoryIcon color="primary" fontSize="large" />
                   <Typography>Agregar Inventario</Typography>

@@ -173,13 +173,13 @@ const Layout: React.FC = () => {
     {
       text: 'Inventario',
       icon: <InventoryIcon />,
-      path: '/inventory',
+      path: '/inventario',
       description: 'Gestión de productos y stock'
     },
     {
       text: 'Proveedores',
       icon: <SuppliersIcon />,
-      path: '/suppliers',
+      path: '/proveedores',
       description: 'Administración de proveedores'
     },
     {
@@ -271,7 +271,6 @@ const Layout: React.FC = () => {
             edge="start"
             sx={{
               mr: 2,
-              display: { xs: 'flex', md: 'none' },
               '&:hover': {
                 backgroundColor: 'rgba(255, 255, 255, 0.1)'
               }
@@ -280,62 +279,22 @@ const Layout: React.FC = () => {
             <MenuIcon />
           </IconButton>
 
-          <Box
-            component="div"
+          <Typography
+            variant="h6"
+            noWrap
+            component="h1"
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              flexGrow: 1,
+              fontSize: { xs: '1.1rem', sm: '1.5rem' },
+              fontWeight: 600,
+              letterSpacing: '0.5px',
+              background: 'linear-gradient(45deg, #1976d2, #4dabf5)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              flexGrow: 1
             }}
           >
-            <Typography
-              variant="h6"
-              noWrap
-              component="h1"
-              sx={{
-                fontSize: { xs: '1.1rem', sm: '1.5rem' },
-                fontWeight: 600,
-                letterSpacing: '0.5px',
-                background: 'linear-gradient(45deg, #1976d2, #4dabf5)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mr: 2
-              }}
-            >
-              ClickStorm Manager
-            </Typography>
-
-            <Box
-              sx={{
-                display: { xs: 'none', md: 'flex' },
-                alignItems: 'center',
-                ml: 3,
-                '& > *:not(:last-child)': {
-                  mr: 2,
-                }
-              }}
-            >
-              {menuItems.slice(0, 3).map((item) => (
-                <Button
-                  key={item.path}
-                  component={RouterLink}
-                  to={item.path}
-                  startIcon={React.cloneElement(item.icon, { fontSize: 'small' })}
-                  sx={{
-                    color: 'white',
-                    textTransform: 'none',
-                    fontSize: '0.875rem',
-                    fontWeight: location.pathname === item.path ? 600 : 400,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    }
-                  }}
-                >
-                  {item.text}
-                </Button>
-              ))}
-            </Box>
-          </Box>
+            ClickStorm Manager
+          </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Tooltip
