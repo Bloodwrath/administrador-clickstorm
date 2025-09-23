@@ -12,17 +12,11 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemAvatar,
-  ListItemButton,
   Toolbar,
   Typography,
   useMediaQuery,
   Tooltip,
   Button,
-  Avatar,
-  Menu,
-  MenuItem,
-  Badge,
   Chip,
 } from '@mui/material';
 import {

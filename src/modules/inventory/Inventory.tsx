@@ -1,27 +1,27 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Theme } from '@mui/material/styles';
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  TextField, 
-  FormControl, 
-  InputLabel, 
-  Select, 
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Tooltip, 
-  IconButton, 
+  Tooltip,
+  IconButton,
   InputAdornment,
   useTheme
 } from '@mui/material';
-import { 
-  Add as AddIcon, 
-  Save as SaveIcon, 
+import {
+  Add as AddIcon,
+  Save as SaveIcon,
   Image as ImageIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
@@ -38,12 +38,11 @@ import { listenProducts, deleteProduct } from '../../services/products';
 import DataTable from '../../components/shared/DataTable';
 
 // Types
-import { Product } from '../../services/products';
 import { Producto } from '../../types/inventory';
 
 // Lista de productos con acciones
-const useStyles = (theme: Theme) => ({
-  dataGrid: {
+const getStyles = (theme: Theme) => ({
+  dataGridRoot: {
     border: 'none',
     '& .MuiDataGrid-cell': {
       borderBottom: `1px solid ${theme.palette.divider}`,
@@ -65,7 +64,7 @@ const useStyles = (theme: Theme) => ({
 const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = false }) => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const classes = useStyles(theme);
+  const styles = getStyles(theme);
   const { showMessage } = useSnackbar();
   const [rows, setRows] = useState<Producto[]>([]);
   const [search, setSearch] = useState('');
@@ -73,7 +72,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
-  
+
   // Función para mapear de Product a Producto
   const mapProductToProducto = (product: any): Producto => {
     // Crear un objeto base con valores por defecto
@@ -125,7 +124,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
       const productos = products.map(mapProductToProducto);
       setRows(productos);
     });
-    
+
     return () => {
       if (unsubscribe) unsubscribe();
     };
@@ -147,22 +146,22 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
   // Filtrar productos
   const filtered = useMemo(() => {
     return rows.filter(product => {
-      const matchesSearch = !search || 
+      const matchesSearch = !search ||
         product.nombre?.toLowerCase().includes(search.toLowerCase()) ||
         product.codigoBarras?.toLowerCase().includes(search.toLowerCase()) ||
         product.categoriaId?.toLowerCase().includes(search.toLowerCase());
-      
+
       const matchesCategory = !filterCategory || product.categoriaId === filterCategory;
       const matchesSupplier = !filterSupplier || product.proveedorId === filterSupplier;
       const matchesLowStock = !lowStockOnly || (product.stock || 0) <= (product.stockMinimo || 0);
-      
+
       return matchesSearch && matchesCategory && matchesSupplier && matchesLowStock;
     });
   }, [rows, search, filterCategory, filterSupplier, lowStockOnly]);
 
   // Columnas de la tabla
   const columns = [
-    { 
+    {
       field: 'imagen',
       headerName: 'Imagen',
       width: 80,
@@ -187,10 +186,10 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
         />
       ),
     },
-    { 
-      field: 'nombre', 
-      headerName: 'Nombre', 
-      flex: 2, 
+    {
+      field: 'nombre',
+      headerName: 'Nombre',
+      flex: 2,
       minWidth: 200,
       renderCell: (params: any) => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -206,17 +205,17 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
         </Box>
       )
     },
-    { 
-      field: 'categoriaId', 
-      headerName: 'Categoría', 
-      flex: 1, 
-      minWidth: 150 
+    {
+      field: 'categoriaId',
+      headerName: 'Categoría',
+      flex: 1,
+      minWidth: 150
     },
-    { 
-      field: 'proveedorId', 
-      headerName: 'Proveedor', 
-      flex: 1, 
-      minWidth: 150 
+    {
+      field: 'proveedorId',
+      headerName: 'Proveedor',
+      flex: 1,
+      minWidth: 150
     },
     {
       field: 'precioMenudeo',
@@ -315,7 +314,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
       ...filtered.map((product: any) => {
         const menudeoPrice = product.precios?.find((p: any) => p.tipo === 'menudeo')?.precio ?? 0;
         const mayoreoPrice = product.precios?.find((p: any) => p.tipo === 'mayoreo')?.precio ?? 0;
-        
+
         return [
           `"${(product.nombre ?? '').replace(/"/g, '""')}"`,
           `"${product.codigoBarras ?? ''}"`,
@@ -331,7 +330,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
         ].join(',');
       })
     ];
-    
+
     const csv = lines.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -346,11 +345,11 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
 
   const handleExportExcel = () => {
     const headers = ['Nombre', 'Código de barras', 'SKU', 'Categoría', 'Proveedor', 'Precio menudeo', 'Precio mayoreo', 'Stock', 'Stock mínimo', 'Stock máximo', 'Activo'];
-    
+
     const rowsHtml = filtered.map((product: any) => {
       const menudeoPrice = product.precios?.find((p: any) => p.tipo === 'menudeo')?.precio ?? 0;
       const mayoreoPrice = product.precios?.find((p: any) => p.tipo === 'mayoreo')?.precio ?? 0;
-      
+
       return (
         `<tr>` +
         `<td>${(product.nombre ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;')}</td>` +
@@ -367,7 +366,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
         `</tr>`
       );
     }).join('');
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -388,7 +387,7 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
           </table>
         </body>
       </html>`;
-    
+
     const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -476,8 +475,8 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
           </Button>
         </Box>
       </Box>
-      
-      <Box sx={{ 
+
+      <Box sx={{
         height: 'calc(100vh - 200px)',
         width: '100%',
         '& .MuiDataGrid-root': {
@@ -508,28 +507,28 @@ const ProductList: React.FC<{ lowStockOnly?: boolean }> = ({ lowStockOnly = fals
           withToolbar={true}
         />
       </Box>
-      
-      <Dialog 
-        open={previewOpen} 
+
+      <Dialog
+        open={previewOpen}
         onClose={() => {
           if (previewSrc) URL.revokeObjectURL(previewSrc);
           setPreviewOpen(false);
           setPreviewSrc(null);
-        }} 
+        }}
         maxWidth="lg"
       >
         <DialogTitle>Vista previa de imagen</DialogTitle>
         <DialogContent>
           {previewSrc && (
-            <img 
-              src={previewSrc} 
-              alt="Vista previa" 
-              style={{ maxWidth: '100%', maxHeight: '70vh' }} 
+            <img
+              src={previewSrc}
+              alt="Vista previa"
+              style={{ maxWidth: '100%', maxHeight: '70vh' }}
             />
           )}
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => {
               if (previewSrc) URL.revokeObjectURL(previewSrc);
               setPreviewOpen(false);
